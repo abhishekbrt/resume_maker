@@ -118,6 +118,46 @@ func TestGeneratePDFSuccess(t *testing.T) {
 	}
 }
 
+func TestGeneratePDFSuccessWithPhoto(t *testing.T) {
+	router := handlers.NewRouter("1.0.0")
+	payload := map[string]any{
+		"data": map[string]any{
+			"personalInfo": map[string]any{
+				"firstName": "Ada",
+				"lastName":  "Lovelace",
+				"email":     "ada@example.com",
+			},
+			"technicalSkills": map[string]any{
+				"languages": "Go",
+			},
+		},
+		"settings": map[string]any{
+			"showPhoto":  true,
+			"fontSize":   "medium",
+			"fontFamily": "times",
+		},
+		"photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7YhJkAAAAASUVORK5CYII=",
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resumes/generate-pdf", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if !bytes.Contains(rr.Body.Bytes(), []byte("/Subtype /Image")) {
+		t.Fatalf("expected generated PDF to include embedded image data")
+	}
+}
+
 func TestGeneratePDFSuccessWithTechnicalSkillsOnly(t *testing.T) {
 	router := handlers.NewRouter("1.0.0")
 	payload := map[string]any{
@@ -188,6 +228,44 @@ func TestGeneratePDFValidationError(t *testing.T) {
 	}
 	if body := rr.Body.String(); !strings.Contains(body, "VALIDATION_ERROR") {
 		t.Fatalf("expected validation error code, got %s", body)
+	}
+}
+
+func TestGeneratePDFValidationErrorWhenPhotoEnabledButMissing(t *testing.T) {
+	router := handlers.NewRouter("1.0.0")
+	payload := map[string]any{
+		"data": map[string]any{
+			"personalInfo": map[string]any{
+				"firstName": "Ada",
+				"lastName":  "Lovelace",
+			},
+			"technicalSkills": map[string]any{
+				"languages": "Go",
+			},
+		},
+		"settings": map[string]any{
+			"showPhoto":  true,
+			"fontSize":   "medium",
+			"fontFamily": "times",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resumes/generate-pdf", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if body := rr.Body.String(); !strings.Contains(body, `"field":"photo"`) {
+		t.Fatalf("expected photo field validation error, got %s", body)
 	}
 }
 

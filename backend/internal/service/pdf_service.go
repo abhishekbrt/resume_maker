@@ -75,6 +75,13 @@ func validate(req models.GeneratePDFRequest) []models.ValidationErrorDetail {
 		})
 	}
 
+	if req.Settings.ShowPhoto && strings.TrimSpace(req.Photo) == "" {
+		details = append(details, models.ValidationErrorDetail{
+			Field:   "photo",
+			Message: "must be provided when settings.showPhoto is true",
+		})
+	}
+
 	hasTechnicalSkills := strings.TrimSpace(req.Data.TechnicalSkills.Languages) != "" ||
 		strings.TrimSpace(req.Data.TechnicalSkills.Frameworks) != "" ||
 		strings.TrimSpace(req.Data.TechnicalSkills.DeveloperTools) != "" ||

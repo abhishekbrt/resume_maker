@@ -107,3 +107,36 @@ func TestGeneratePDFDiffersByFontFamily(t *testing.T) {
 		t.Fatal("expected calibri and arial PDFs to differ")
 	}
 }
+
+func TestGeneratePDFIncludesImageWhenPhotoEnabled(t *testing.T) {
+	generator := Generator{}
+	req := models.GeneratePDFRequest{
+		Data: models.ResumeData{
+			PersonalInfo: models.PersonalInfo{
+				FirstName: "Ada",
+				LastName:  "Lovelace",
+				Email:     "ada@example.com",
+			},
+			TechnicalSkills: models.TechnicalSkills{
+				Languages: "Go",
+			},
+		},
+		Settings: models.ResumeSetting{
+			ShowPhoto:  true,
+			FontFamily: "times",
+			FontSize:   "medium",
+		},
+		Photo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7YhJkAAAAASUVORK5CYII=",
+	}
+
+	pdfBytes, err := generator.Generate(req)
+	if err != nil {
+		t.Fatalf("generate with photo: %v", err)
+	}
+	if len(pdfBytes) == 0 {
+		t.Fatal("expected non-empty PDF bytes")
+	}
+	if !bytes.Contains(pdfBytes, []byte("/Subtype /Image")) {
+		t.Fatal("expected generated PDF to contain embedded image object")
+	}
+}

@@ -3,6 +3,7 @@ package pdfgen
 import (
 	"bytes"
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -119,7 +120,9 @@ func (Generator) Generate(req models.GeneratePDFRequest) ([]byte, error) {
 	fontFamily := mapFont(req.Settings.FontFamily)
 	fontSize := mapFontSize(req.Settings.FontSize)
 
-	renderHeader(pdf, req, fontFamily, fontSize, layout)
+	if err := renderHeader(pdf, req, fontFamily, fontSize, layout); err != nil {
+		return nil, fmt.Errorf("render header: %w", err)
+	}
 
 	if len(req.Data.Education) > 0 {
 		addSectionTitle(pdf, fontFamily, fontSize, "Education", layout)
@@ -175,18 +178,42 @@ func (Generator) Generate(req models.GeneratePDFRequest) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func renderHeader(pdf *fpdf.Fpdf, req models.GeneratePDFRequest, fontFamily string, fontSize float64, layout layoutConfig) {
-	ensureSpace(pdf, 14, layout)
+func renderHeader(pdf *fpdf.Fpdf, req models.GeneratePDFRequest, fontFamily string, fontSize float64, layout layoutConfig) error {
+	photoReservedWidth := 0.0
+	if req.Settings.ShowPhoto && strings.TrimSpace(req.Photo) != "" {
+		photoReservedWidth = 30
+	}
+
+	headerHeight := 14.0
+	if photoReservedWidth > 0 {
+		headerHeight = 30
+	}
+	ensureSpace(pdf, headerHeight, layout)
+
+	if photoReservedWidth > 0 {
+		if err := renderHeaderPhoto(pdf, req.Photo, layout); err != nil {
+			return err
+		}
+	}
+
+	pageWidth, _ := pdf.GetPageSize()
+	contentWidth := pageWidth - layout.leftMargin - layout.rightMargin
+	textBlockWidth := contentWidth - photoReservedWidth
+	if textBlockWidth <= 0 {
+		textBlockWidth = contentWidth
+	}
 
 	pdf.SetFont(fontFamily, "B", fontSize+5)
 	fullName := strings.TrimSpace(req.Data.PersonalInfo.FirstName + " " + req.Data.PersonalInfo.LastName)
-	pdf.CellFormat(0, 8, fullName, "", 1, "C", false, 0, "")
+	pdf.SetX(layout.leftMargin)
+	pdf.CellFormat(textBlockWidth, 8, fullName, "", 1, "C", false, 0, "")
 
 	contactTokens := buildHeaderContactTokens(req.Data.PersonalInfo)
 	if len(contactTokens) > 0 {
-		renderCenteredContactTokens(pdf, fontFamily, fontSize, contactTokens, layout)
+		renderCenteredContactTokens(pdf, fontFamily, fontSize, contactTokens, layout, layout.leftMargin, textBlockWidth)
 	}
 	pdf.Ln(2)
+	return nil
 }
 
 func addSectionTitle(pdf *fpdf.Fpdf, fontFamily string, fontSize float64, title string, layout layoutConfig) {
@@ -473,10 +500,75 @@ func buildHeaderContactTokens(info models.PersonalInfo) []contactToken {
 	return tokens
 }
 
-func renderCenteredContactTokens(pdf *fpdf.Fpdf, fontFamily string, fontSize float64, tokens []contactToken, layout layoutConfig) {
-	pdf.SetFont(fontFamily, "", fontSize)
+func renderHeaderPhoto(pdf *fpdf.Fpdf, photo string, layout layoutConfig) error {
+	imageType, imageBytes, err := decodePhotoDataURL(photo)
+	if err != nil {
+		return fmt.Errorf("decode photo data url: %w", err)
+	}
+
+	if len(imageBytes) == 0 {
+		return fmt.Errorf("empty decoded photo payload")
+	}
+
+	const photoDiameter = 24.0
 	pageWidth, _ := pdf.GetPageSize()
-	contentWidth := pageWidth - layout.leftMargin - layout.rightMargin
+	photoX := pageWidth - layout.rightMargin - photoDiameter
+	photoY := layout.topMargin
+	centerX := photoX + (photoDiameter / 2)
+	centerY := photoY + (photoDiameter / 2)
+	radius := photoDiameter / 2
+
+	imageName := "profile-photo"
+	options := fpdf.ImageOptions{ImageType: imageType}
+	info := pdf.RegisterImageOptionsReader(imageName, options, bytes.NewReader(imageBytes))
+	if info == nil || pdf.Err() {
+		return fmt.Errorf("register photo image: %w", pdf.Error())
+	}
+
+	pdf.ClipCircle(centerX, centerY, radius, false)
+	pdf.ImageOptions(imageName, photoX, photoY, photoDiameter, photoDiameter, false, options, 0, "")
+	if pdf.Err() {
+		return fmt.Errorf("draw photo image: %w", pdf.Error())
+	}
+	pdf.ClipEnd()
+
+	pdf.SetDrawColor(133, 149, 160)
+	pdf.SetLineWidth(0.35)
+	pdf.Circle(centerX, centerY, radius, "D")
+	pdf.SetDrawColor(0, 0, 0)
+	pdf.SetLineWidth(0.2)
+
+	return nil
+}
+
+func decodePhotoDataURL(photo string) (string, []byte, error) {
+	trimmed := strings.TrimSpace(photo)
+	const jpegPrefix = "data:image/jpeg;base64,"
+	const pngPrefix = "data:image/png;base64,"
+
+	imageType := ""
+	encoded := ""
+	switch {
+	case strings.HasPrefix(trimmed, jpegPrefix):
+		imageType = "JPG"
+		encoded = strings.TrimPrefix(trimmed, jpegPrefix)
+	case strings.HasPrefix(trimmed, pngPrefix):
+		imageType = "PNG"
+		encoded = strings.TrimPrefix(trimmed, pngPrefix)
+	default:
+		return "", nil, fmt.Errorf("unsupported photo data url format")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", nil, fmt.Errorf("decode base64 photo: %w", err)
+	}
+
+	return imageType, decoded, nil
+}
+
+func renderCenteredContactTokens(pdf *fpdf.Fpdf, fontFamily string, fontSize float64, tokens []contactToken, layout layoutConfig, baseX float64, contentWidth float64) {
+	pdf.SetFont(fontFamily, "", fontSize)
 
 	lines := make([][]contactToken, 0, 2)
 	currentLine := make([]contactToken, 0, len(tokens)*2)
@@ -516,9 +608,9 @@ func renderCenteredContactTokens(pdf *fpdf.Fpdf, fontFamily string, fontSize flo
 		}
 
 		ensureSpace(pdf, layout.lineHeight, layout)
-		startX := layout.leftMargin + (contentWidth-lineWidth)/2
-		if startX < layout.leftMargin {
-			startX = layout.leftMargin
+		startX := baseX + (contentWidth-lineWidth)/2
+		if startX < baseX {
+			startX = baseX
 		}
 		pdf.SetX(startX)
 
