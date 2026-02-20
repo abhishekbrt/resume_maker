@@ -26,6 +26,7 @@ const STORAGE_KEY = 'resume-maker-v1';
 export interface ResumeState {
   data: ResumeData;
   settings: ResumeSettings;
+  photo: string;
 }
 
 const initialSettings: ResumeSettings = {
@@ -107,6 +108,7 @@ export function createEmptyResumeData(): ResumeData {
 const initialState: ResumeState = {
   data: createEmptyResumeData(),
   settings: initialSettings,
+  photo: '',
 };
 
 type EducationField = Exclude<keyof EducationEntry, 'id' | 'bullets'>;
@@ -217,6 +219,13 @@ export type ResumeAction =
   | {
       type: 'SET_SHOW_PHOTO';
       value: boolean;
+    }
+  | {
+      type: 'SET_PHOTO';
+      value: string;
+    }
+  | {
+      type: 'CLEAR_PHOTO';
     }
   | {
       type: 'LOAD_STATE';
@@ -490,6 +499,18 @@ export function resumeReducer(state: ResumeState, action: ResumeAction): ResumeS
         },
       };
     }
+    case 'SET_PHOTO': {
+      return {
+        ...state,
+        photo: action.value,
+      };
+    }
+    case 'CLEAR_PHOTO': {
+      return {
+        ...state,
+        photo: '',
+      };
+    }
     case 'LOAD_STATE': {
       return action.value;
     }
@@ -570,6 +591,7 @@ function readPersistedState(): ResumeState {
         ...parsed.settings,
       },
       data: normalizeResumeData(parsed.data),
+      photo: typeof parsed.photo === 'string' ? parsed.photo : '',
     };
   } catch {
     return initialState;

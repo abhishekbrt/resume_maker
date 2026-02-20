@@ -1,6 +1,13 @@
-import type { ResumeData } from '@/lib/types';
+import type { ResumeData, ResumeSettings } from '@/lib/types';
 
-export function validateForDownload(data: ResumeData): string[] {
+interface ValidationInput {
+  data: ResumeData;
+  settings: ResumeSettings;
+  photo: string;
+}
+
+export function validateForDownload(input: ValidationInput): string[] {
+  const { data, settings, photo } = input;
   const errors: string[] = [];
 
   if (data.personalInfo.firstName.trim() === '') {
@@ -34,6 +41,10 @@ export function validateForDownload(data: ResumeData): string[] {
   const hasInvalidProject = data.projects.some((entry) => entry.name.trim() === '');
   if (hasInvalidProject) {
     errors.push('Each project entry must include a project name.');
+  }
+
+  if (settings.showPhoto && photo.trim() === '') {
+    errors.push('Upload a profile photo or disable Show profile photo.');
   }
 
   return errors;

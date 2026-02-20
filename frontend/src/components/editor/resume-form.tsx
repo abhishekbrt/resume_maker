@@ -1,10 +1,59 @@
 'use client';
 
+import { useState, type ChangeEvent } from 'react';
+import Image from 'next/image';
+
 import { useResume } from '@/lib/resume-context';
 import styles from '@/styles/resume-form.module.css';
 
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
+
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Unable to read selected file.'));
+    };
+    reader.onerror = () => reject(new Error('Unable to read selected file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ResumeForm() {
   const { state, dispatch } = useResume();
+  const [photoError, setPhotoError] = useState('');
+
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!ACCEPTED_PHOTO_TYPES.has(file.type)) {
+      setPhotoError('Please upload a JPG or PNG image.');
+      return;
+    }
+
+    if (file.size > MAX_PHOTO_SIZE_BYTES) {
+      setPhotoError('Image must be under 5MB.');
+      return;
+    }
+
+    try {
+      const photoDataUrl = await readFileAsDataURL(file);
+      dispatch({ type: 'SET_PHOTO', value: photoDataUrl });
+      setPhotoError('');
+    } catch {
+      setPhotoError('Unable to read selected image. Please try another file.');
+    }
+  };
 
   return (
     <div className={styles.container}>
@@ -596,6 +645,29 @@ export function ResumeForm() {
             />
             Show profile photo
           </label>
+
+          <div className={styles.fullWidth}>
+            <label className={styles.fileLabel}>
+              Profile Photo (JPG/PNG, max 5MB)
+              <input type="file" name="photoUpload" accept="image/jpeg,image/png" onChange={handlePhotoUpload} />
+            </label>
+            {photoError !== '' && <p className={styles.photoError}>{photoError}</p>}
+            {state.photo.trim() !== '' && (
+              <div className={styles.photoPreviewRow}>
+                <Image
+                  className={styles.photoPreview}
+                  src={state.photo}
+                  alt="Profile photo preview"
+                  width={58}
+                  height={58}
+                  unoptimized
+                />
+                <button type="button" onClick={() => dispatch({ type: 'CLEAR_PHOTO' })}>
+                  Remove Photo
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>

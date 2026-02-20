@@ -43,6 +43,10 @@
   background: #fff;
 }
 
+.section input[type='file'] {
+  padding: 0.4rem;
+}
+
 .section button {
   border: 0;
   border-radius: 0.45rem;
@@ -103,6 +107,33 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.fileLabel {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.photoError {
+  margin-top: 0.25rem;
+  color: #9a2619;
+  font-size: 0.84rem;
+}
+
+.photoPreviewRow {
+  margin-top: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.photoPreview {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #b6c5cc;
+  background: #fff;
 }
 
 @media (max-width: 720px) {

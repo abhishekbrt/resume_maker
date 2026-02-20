@@ -16,6 +16,7 @@ describe('resumeReducer', () => {
     const initial = {
       data: createEmptyResumeData(),
       settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
     };
 
     const next = reduce(initial, {
@@ -31,6 +32,7 @@ describe('resumeReducer', () => {
     const initial = {
       data: createEmptyResumeData(),
       settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
     };
 
     const withEntry = reduce(initial, { type: 'ADD_EXPERIENCE' });
@@ -60,6 +62,7 @@ describe('resumeReducer', () => {
     const initial = {
       data: createEmptyResumeData(),
       settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
     };
 
     const added = reduce(initial, { type: 'ADD_PROJECT' });
@@ -73,6 +76,7 @@ describe('resumeReducer', () => {
     const initial = {
       data: createEmptyResumeData(),
       settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
     };
 
     const next = reduce(initial, {
@@ -89,6 +93,7 @@ describe('resumeReducer', () => {
     const initial = {
       data: createEmptyResumeData(),
       settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
     };
 
     const withLink = reduce(initial, { type: 'ADD_PERSONAL_LINK' });
@@ -109,5 +114,22 @@ describe('resumeReducer', () => {
 
     expect(updatedUrl.data.personalInfo.otherLinks[0]?.label).toBe('LeetCode');
     expect(updatedUrl.data.personalInfo.otherLinks[0]?.url).toBe('leetcode.com/abhishek');
+  });
+
+  it('sets and clears uploaded photo state', () => {
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
+    };
+
+    const withPhoto = reduce(initial, {
+      type: 'SET_PHOTO',
+      value: 'data:image/png;base64,abc',
+    });
+    expect(withPhoto.photo).toBe('data:image/png;base64,abc');
+
+    const cleared = reduce(withPhoto, { type: 'CLEAR_PHOTO' });
+    expect(cleared.photo).toBe('');
   });
 });

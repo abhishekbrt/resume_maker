@@ -30,9 +30,14 @@
 }
 
 .header {
+  position: relative;
   text-align: center;
   border-bottom: 1px solid #c9d3d8;
   padding-bottom: 0.5rem;
+}
+
+.headerWithPhoto {
+  padding-right: 95px;
 }
 
 .header h1 {
@@ -43,6 +48,18 @@
 .header p {
   color: #3f5964;
   font-size: 0.88rem;
+}
+
+.headerPhoto {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #b8c5cc;
+  background: #fff;
 }
 
 .headerContactLine {
@@ -110,4 +127,15 @@
 
 .section strong {
   color: #1f3741;
+}
+
+@media (max-width: 720px) {
+  .headerWithPhoto {
+    padding-right: 78px;
+  }
+
+  .headerPhoto {
+    width: 62px;
+    height: 62px;
+  }
 }

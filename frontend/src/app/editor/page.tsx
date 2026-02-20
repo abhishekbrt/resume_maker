@@ -15,7 +15,15 @@ function EditorWorkspace() {
   const [errorMessage, setErrorMessage] = useState('');
   const [errorType, setErrorType] = useState<'validation' | 'api' | ''>('');
 
-  const validationErrors = useMemo(() => validateForDownload(state.data), [state.data]);
+  const validationErrors = useMemo(
+    () =>
+      validateForDownload({
+        data: state.data,
+        settings: state.settings,
+        photo: state.photo,
+      }),
+    [state],
+  );
 
   useEffect(() => {
     if (errorType === 'validation' && validationErrors.length === 0) {
@@ -39,6 +47,7 @@ function EditorWorkspace() {
       const pdfBlob = await generatePDF({
         data: state.data,
         settings: state.settings,
+        photo: state.settings.showPhoto && state.photo.trim() !== '' ? state.photo : undefined,
       });
 
       const url = window.URL.createObjectURL(pdfBlob);

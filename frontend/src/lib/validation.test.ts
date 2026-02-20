@@ -7,7 +7,11 @@ describe('validateForDownload', () => {
   it('returns errors when name and content sections are missing', () => {
     const data = createEmptyResumeData();
 
-    const errors = validateForDownload(data);
+    const errors = validateForDownload({
+      data,
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+      photo: '',
+    });
 
     expect(errors).toContain('First name is required.');
     expect(errors).toContain('Last name is required.');
@@ -22,7 +26,13 @@ describe('validateForDownload', () => {
     data.personalInfo.lastName = 'Lovelace';
     data.technicalSkills.languages = 'Go';
 
-    expect(validateForDownload(data)).toEqual([]);
+    expect(
+      validateForDownload({
+        data,
+        settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+        photo: '',
+      }),
+    ).toEqual([]);
   });
 
   it('returns an error when an experience entry has no role or company', () => {
@@ -39,7 +49,13 @@ describe('validateForDownload', () => {
       bullets: [],
     });
 
-    expect(validateForDownload(data)).toContain(
+    expect(
+      validateForDownload({
+        data,
+        settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+        photo: '',
+      }),
+    ).toContain(
       'Each experience entry must include at least role or company.',
     );
   });
@@ -57,6 +73,27 @@ describe('validateForDownload', () => {
       bullets: [],
     });
 
-    expect(validateForDownload(data)).toContain('Each project entry must include a project name.');
+    expect(
+      validateForDownload({
+        data,
+        settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+        photo: '',
+      }),
+    ).toContain('Each project entry must include a project name.');
+  });
+
+  it('returns an error when show photo is enabled but photo is missing', () => {
+    const data = createEmptyResumeData();
+    data.personalInfo.firstName = 'Ada';
+    data.personalInfo.lastName = 'Lovelace';
+    data.technicalSkills.languages = 'Go';
+
+    expect(
+      validateForDownload({
+        data,
+        settings: { showPhoto: true, fontSize: 'medium', fontFamily: 'times' },
+        photo: '',
+      }),
+    ).toContain('Upload a profile photo or disable Show profile photo.');
   });
 });

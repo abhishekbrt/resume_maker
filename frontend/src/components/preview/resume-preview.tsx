@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import { useResume } from '@/lib/resume-context';
 import type { FontFamily } from '@/lib/types';
 import styles from '@/styles/resume-preview.module.css';
@@ -65,6 +67,7 @@ export function ResumePreview() {
   const { data } = state;
   const { personalInfo } = data;
   const previewFontClass = mapPreviewFontClass(state.settings.fontFamily);
+  const showHeaderPhoto = state.settings.showPhoto && state.photo.trim() !== '';
 
   const fullName = `${personalInfo.firstName} ${personalInfo.lastName}`.trim();
   const headerContacts = [
@@ -86,7 +89,10 @@ export function ResumePreview() {
   return (
     <div className={styles.previewRoot}>
       <article className={`${styles.paper} ${previewFontClass}`} data-testid="resume-preview-paper">
-        <header className={styles.header}>
+        <header className={`${styles.header} ${showHeaderPhoto ? styles.headerWithPhoto : ''}`}>
+          {showHeaderPhoto && (
+            <Image className={styles.headerPhoto} src={state.photo} alt="Profile photo" width={78} height={78} unoptimized />
+          )}
           <h1>{fullName || 'Your Name'}</h1>
           <p className={styles.headerContactLine}>
             {headerContacts.length > 0 ? (
