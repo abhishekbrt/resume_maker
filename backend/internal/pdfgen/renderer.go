@@ -2,6 +2,7 @@ package pdfgen
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"strings"
 	"time"
@@ -31,6 +32,61 @@ type contactToken struct {
 	url  string
 }
 
+const (
+	fontFamilyTimes    = "resume_times"
+	fontFamilyGaramond = "resume_garamond"
+	fontFamilyCalibri  = "resume_calibri"
+	fontFamilyArial    = "resume_arial"
+)
+
+//go:embed fonts/times-regular.ttf
+var timesRegularFont []byte
+
+//go:embed fonts/times-bold.ttf
+var timesBoldFont []byte
+
+//go:embed fonts/times-italic.ttf
+var timesItalicFont []byte
+
+//go:embed fonts/times-bolditalic.ttf
+var timesBoldItalicFont []byte
+
+//go:embed fonts/garamond-regular.ttf
+var garamondRegularFont []byte
+
+//go:embed fonts/garamond-bold.ttf
+var garamondBoldFont []byte
+
+//go:embed fonts/garamond-italic.ttf
+var garamondItalicFont []byte
+
+//go:embed fonts/garamond-bolditalic.ttf
+var garamondBoldItalicFont []byte
+
+//go:embed fonts/calibri-regular.ttf
+var calibriRegularFont []byte
+
+//go:embed fonts/calibri-bold.ttf
+var calibriBoldFont []byte
+
+//go:embed fonts/calibri-italic.ttf
+var calibriItalicFont []byte
+
+//go:embed fonts/calibri-bolditalic.ttf
+var calibriBoldItalicFont []byte
+
+//go:embed fonts/arial-regular.ttf
+var arialRegularFont []byte
+
+//go:embed fonts/arial-bold.ttf
+var arialBoldFont []byte
+
+//go:embed fonts/arial-italic.ttf
+var arialItalicFont []byte
+
+//go:embed fonts/arial-bolditalic.ttf
+var arialBoldItalicFont []byte
+
 func defaultLayout() layoutConfig {
 	return layoutConfig{
 		leftMargin:     20,
@@ -50,6 +106,9 @@ func (Generator) Generate(req models.GeneratePDFRequest) ([]byte, error) {
 	layout := defaultLayout()
 
 	pdf := fpdf.New("P", "mm", "A4", "")
+	if err := registerResumeFonts(pdf); err != nil {
+		return nil, fmt.Errorf("register resume fonts: %w", err)
+	}
 	pdf.SetCreationDate(time.Unix(0, 0))
 	pdf.SetCatalogSort(true)
 	pdf.SetTitle("Resume", false)
@@ -303,13 +362,56 @@ func formatDateRange(startDate string, endDate string) string {
 
 func mapFont(fontFamily string) string {
 	switch strings.ToLower(strings.TrimSpace(fontFamily)) {
-	case "arial", "calibri":
-		return "Arial"
-	case "garamond", "times", "":
-		return "Times"
+	case "arial":
+		return fontFamilyArial
+	case "calibri":
+		return fontFamilyCalibri
+	case "garamond":
+		return fontFamilyGaramond
+	case "times", "":
+		return fontFamilyTimes
 	default:
-		return "Times"
+		return fontFamilyTimes
 	}
+}
+
+type fontVariant struct {
+	family string
+	style  string
+	data   []byte
+}
+
+func registerResumeFonts(pdf *fpdf.Fpdf) error {
+	fontVariants := []fontVariant{
+		{family: fontFamilyTimes, style: "", data: timesRegularFont},
+		{family: fontFamilyTimes, style: "B", data: timesBoldFont},
+		{family: fontFamilyTimes, style: "I", data: timesItalicFont},
+		{family: fontFamilyTimes, style: "BI", data: timesBoldItalicFont},
+		{family: fontFamilyGaramond, style: "", data: garamondRegularFont},
+		{family: fontFamilyGaramond, style: "B", data: garamondBoldFont},
+		{family: fontFamilyGaramond, style: "I", data: garamondItalicFont},
+		{family: fontFamilyGaramond, style: "BI", data: garamondBoldItalicFont},
+		{family: fontFamilyCalibri, style: "", data: calibriRegularFont},
+		{family: fontFamilyCalibri, style: "B", data: calibriBoldFont},
+		{family: fontFamilyCalibri, style: "I", data: calibriItalicFont},
+		{family: fontFamilyCalibri, style: "BI", data: calibriBoldItalicFont},
+		{family: fontFamilyArial, style: "", data: arialRegularFont},
+		{family: fontFamilyArial, style: "B", data: arialBoldFont},
+		{family: fontFamilyArial, style: "I", data: arialItalicFont},
+		{family: fontFamilyArial, style: "BI", data: arialBoldItalicFont},
+	}
+
+	for _, variant := range fontVariants {
+		if len(variant.data) == 0 {
+			return fmt.Errorf("missing embedded font bytes for %s (%s)", variant.family, variant.style)
+		}
+		pdf.AddUTF8FontFromBytes(variant.family, variant.style, variant.data)
+		if pdf.Err() {
+			return fmt.Errorf("add font %s (%s): %w", variant.family, variant.style, pdf.Error())
+		}
+	}
+
+	return nil
 }
 
 func mapFontSize(size string) float64 {
