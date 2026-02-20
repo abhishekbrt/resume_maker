@@ -9,6 +9,18 @@ import styles from '@/styles/resume-form.module.css';
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
 
+function validatePhotoFile(file: File): string {
+  if (!ACCEPTED_PHOTO_TYPES.has(file.type)) {
+    return 'Please upload a JPG or PNG image.';
+  }
+
+  if (file.size > MAX_PHOTO_SIZE_BYTES) {
+    return 'Image must be under 5MB.';
+  }
+
+  return '';
+}
+
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -36,13 +48,9 @@ export function ResumeForm() {
       return;
     }
 
-    if (!ACCEPTED_PHOTO_TYPES.has(file.type)) {
-      setPhotoError('Please upload a JPG or PNG image.');
-      return;
-    }
-
-    if (file.size > MAX_PHOTO_SIZE_BYTES) {
-      setPhotoError('Image must be under 5MB.');
+    const validationError = validatePhotoFile(file);
+    if (validationError !== '') {
+      setPhotoError(validationError);
       return;
     }
 

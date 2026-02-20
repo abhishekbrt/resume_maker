@@ -17,6 +17,7 @@ describe('ResumeForm', () => {
     expect(screen.getByLabelText('Email')).toHaveAttribute('name', 'email');
     expect(screen.getByLabelText('Website')).toHaveAttribute('name', 'website');
     expect(screen.getByLabelText('Profile Photo (JPG/PNG, max 5MB)')).toHaveAttribute('name', 'photoUpload');
+    expect(screen.getByRole('checkbox', { name: 'Show profile photo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Link' })).toBeInTheDocument();
   });
 });
