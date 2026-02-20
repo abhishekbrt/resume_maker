@@ -10,7 +10,15 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { PersonalInfo, ResumeData, ResumeSettings } from '@/lib/types';
+import type {
+  EducationEntry,
+  ExperienceEntry,
+  PersonalInfo,
+  ProjectEntry,
+  ResumeData,
+  ResumeSettings,
+  TechnicalSkills,
+} from '@/lib/types';
 
 const STORAGE_KEY = 'resume-maker-v1';
 
@@ -25,6 +33,48 @@ const initialSettings: ResumeSettings = {
   fontFamily: 'times',
 };
 
+const emptyTechnicalSkills: TechnicalSkills = {
+  languages: '',
+  frameworks: '',
+  developerTools: '',
+  libraries: '',
+};
+
+function createEducationEntry(): EducationEntry {
+  return {
+    id: crypto.randomUUID(),
+    institution: '',
+    location: '',
+    degree: '',
+    startDate: '',
+    endDate: '',
+    bullets: [],
+  };
+}
+
+function createExperienceEntry(): ExperienceEntry {
+  return {
+    id: crypto.randomUUID(),
+    company: '',
+    location: '',
+    role: '',
+    startDate: '',
+    endDate: '',
+    bullets: [],
+  };
+}
+
+function createProjectEntry(): ProjectEntry {
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    techStack: '',
+    startDate: '',
+    endDate: '',
+    bullets: [],
+  };
+}
+
 export function createEmptyResumeData(): ResumeData {
   return {
     personalInfo: {
@@ -34,12 +84,13 @@ export function createEmptyResumeData(): ResumeData {
       phone: '',
       email: '',
       linkedin: '',
+      github: '',
       website: '',
     },
-    summary: '',
     experience: [],
     education: [],
-    skills: [],
+    projects: [],
+    technicalSkills: emptyTechnicalSkills,
   };
 }
 
@@ -48,6 +99,10 @@ const initialState: ResumeState = {
   settings: initialSettings,
 };
 
+type EducationField = Exclude<keyof EducationEntry, 'id' | 'bullets'>;
+type ExperienceField = Exclude<keyof ExperienceEntry, 'id' | 'bullets'>;
+type ProjectField = Exclude<keyof ProjectEntry, 'id' | 'bullets'>;
+
 export type ResumeAction =
   | {
       type: 'UPDATE_PERSONAL_INFO';
@@ -55,16 +110,78 @@ export type ResumeAction =
       value: string;
     }
   | {
-      type: 'UPDATE_SUMMARY';
-      value: string;
+      type: 'ADD_EDUCATION';
     }
   | {
-      type: 'ADD_SKILL';
-      value: string;
-    }
-  | {
-      type: 'REMOVE_SKILL';
+      type: 'UPDATE_EDUCATION_FIELD';
       index: number;
+      field: EducationField;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_EDUCATION';
+      index: number;
+    }
+  | {
+      type: 'ADD_EXPERIENCE';
+    }
+  | {
+      type: 'UPDATE_EXPERIENCE_FIELD';
+      index: number;
+      field: ExperienceField;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_EXPERIENCE';
+      index: number;
+    }
+  | {
+      type: 'ADD_EXPERIENCE_BULLET';
+      index: number;
+    }
+  | {
+      type: 'UPDATE_EXPERIENCE_BULLET';
+      index: number;
+      bulletIndex: number;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_EXPERIENCE_BULLET';
+      index: number;
+      bulletIndex: number;
+    }
+  | {
+      type: 'ADD_PROJECT';
+    }
+  | {
+      type: 'UPDATE_PROJECT_FIELD';
+      index: number;
+      field: ProjectField;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_PROJECT';
+      index: number;
+    }
+  | {
+      type: 'ADD_PROJECT_BULLET';
+      index: number;
+    }
+  | {
+      type: 'UPDATE_PROJECT_BULLET';
+      index: number;
+      bulletIndex: number;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_PROJECT_BULLET';
+      index: number;
+      bulletIndex: number;
+    }
+  | {
+      type: 'UPDATE_TECHNICAL_SKILLS_FIELD';
+      field: keyof TechnicalSkills;
+      value: string;
     }
   | {
       type: 'SET_FONT_FAMILY';
@@ -100,34 +217,188 @@ export function resumeReducer(state: ResumeState, action: ResumeAction): ResumeS
         },
       };
     }
-    case 'UPDATE_SUMMARY': {
+    case 'ADD_EDUCATION': {
       return {
         ...state,
         data: {
           ...state.data,
-          summary: action.value,
+          education: [...state.data.education, createEducationEntry()],
         },
       };
     }
-    case 'ADD_SKILL': {
-      const value = action.value.trim();
-      if (value === '') {
-        return state;
-      }
+    case 'UPDATE_EDUCATION_FIELD': {
       return {
         ...state,
         data: {
           ...state.data,
-          skills: [...state.data.skills, value],
+          education: state.data.education.map((entry, index) =>
+            index === action.index ? { ...entry, [action.field]: action.value } : entry,
+          ),
         },
       };
     }
-    case 'REMOVE_SKILL': {
+    case 'REMOVE_EDUCATION': {
       return {
         ...state,
         data: {
           ...state.data,
-          skills: state.data.skills.filter((_, index) => index !== action.index),
+          education: state.data.education.filter((_, index) => index !== action.index),
+        },
+      };
+    }
+    case 'ADD_EXPERIENCE': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: [...state.data.experience, createExperienceEntry()],
+        },
+      };
+    }
+    case 'UPDATE_EXPERIENCE_FIELD': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: state.data.experience.map((entry, index) =>
+            index === action.index ? { ...entry, [action.field]: action.value } : entry,
+          ),
+        },
+      };
+    }
+    case 'REMOVE_EXPERIENCE': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: state.data.experience.filter((_, index) => index !== action.index),
+        },
+      };
+    }
+    case 'ADD_EXPERIENCE_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: state.data.experience.map((entry, index) =>
+            index === action.index ? { ...entry, bullets: [...entry.bullets, ''] } : entry,
+          ),
+        },
+      };
+    }
+    case 'UPDATE_EXPERIENCE_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: state.data.experience.map((entry, index) => {
+            if (index !== action.index) {
+              return entry;
+            }
+            return {
+              ...entry,
+              bullets: entry.bullets.map((bullet, bulletIndex) =>
+                bulletIndex === action.bulletIndex ? action.value : bullet,
+              ),
+            };
+          }),
+        },
+      };
+    }
+    case 'REMOVE_EXPERIENCE_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          experience: state.data.experience.map((entry, index) =>
+            index === action.index
+              ? { ...entry, bullets: entry.bullets.filter((_, bulletIndex) => bulletIndex !== action.bulletIndex) }
+              : entry,
+          ),
+        },
+      };
+    }
+    case 'ADD_PROJECT': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: [...state.data.projects, createProjectEntry()],
+        },
+      };
+    }
+    case 'UPDATE_PROJECT_FIELD': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: state.data.projects.map((entry, index) =>
+            index === action.index ? { ...entry, [action.field]: action.value } : entry,
+          ),
+        },
+      };
+    }
+    case 'REMOVE_PROJECT': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: state.data.projects.filter((_, index) => index !== action.index),
+        },
+      };
+    }
+    case 'ADD_PROJECT_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: state.data.projects.map((entry, index) =>
+            index === action.index ? { ...entry, bullets: [...entry.bullets, ''] } : entry,
+          ),
+        },
+      };
+    }
+    case 'UPDATE_PROJECT_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: state.data.projects.map((entry, index) => {
+            if (index !== action.index) {
+              return entry;
+            }
+            return {
+              ...entry,
+              bullets: entry.bullets.map((bullet, bulletIndex) =>
+                bulletIndex === action.bulletIndex ? action.value : bullet,
+              ),
+            };
+          }),
+        },
+      };
+    }
+    case 'REMOVE_PROJECT_BULLET': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          projects: state.data.projects.map((entry, index) =>
+            index === action.index
+              ? { ...entry, bullets: entry.bullets.filter((_, bulletIndex) => bulletIndex !== action.bulletIndex) }
+              : entry,
+          ),
+        },
+      };
+    }
+    case 'UPDATE_TECHNICAL_SKILLS_FIELD': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          technicalSkills: {
+            ...state.data.technicalSkills,
+            [action.field]: action.value,
+          },
         },
       };
     }
@@ -176,6 +447,38 @@ interface ResumeContextValue {
 
 const ResumeContext = createContext<ResumeContextValue | null>(null);
 
+function normalizeResumeData(rawData: unknown): ResumeData {
+  const defaultData = createEmptyResumeData();
+  if (!rawData || typeof rawData !== 'object') {
+    return defaultData;
+  }
+
+  const data = rawData as Partial<ResumeData> & {
+    skills?: string[];
+  };
+
+  return {
+    personalInfo: {
+      ...defaultData.personalInfo,
+      ...data.personalInfo,
+      github: data.personalInfo?.github ?? '',
+    },
+    education: Array.isArray(data.education) ? data.education : [],
+    experience: Array.isArray(data.experience) ? data.experience : [],
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    technicalSkills:
+      data.technicalSkills && typeof data.technicalSkills === 'object'
+        ? {
+            ...emptyTechnicalSkills,
+            ...data.technicalSkills,
+          }
+        : {
+            ...emptyTechnicalSkills,
+            languages: Array.isArray(data.skills) ? data.skills.join(', ') : '',
+          },
+  };
+}
+
 function readPersistedState(): ResumeState {
   if (typeof window === 'undefined') {
     return initialState;
@@ -187,11 +490,14 @@ function readPersistedState(): ResumeState {
   }
 
   try {
-    const parsed = JSON.parse(raw) as ResumeState;
-    if (!parsed.data || !parsed.settings) {
-      return initialState;
-    }
-    return parsed;
+    const parsed = JSON.parse(raw) as Partial<ResumeState>;
+    return {
+      settings: {
+        ...initialSettings,
+        ...parsed.settings,
+      },
+      data: normalizeResumeData(parsed.data),
+    };
   } catch {
     return initialState;
   }
@@ -209,10 +515,7 @@ export function ResumeProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  const value = useMemo(
-    () => ({ state, dispatch }),
-    [state, dispatch],
-  );
+  const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
 
   return <ResumeContext.Provider value={value}>{children}</ResumeContext.Provider>;
 }

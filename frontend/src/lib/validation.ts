@@ -11,8 +11,29 @@ export function validateForDownload(data: ResumeData): string[] {
     errors.push('Last name is required.');
   }
 
-  if (data.experience.length === 0 && data.education.length === 0 && data.skills.length === 0) {
-    errors.push('Add at least one experience, education, or skill entry.');
+  const hasTechnicalSkills = Object.values(data.technicalSkills).some(
+    (value) => value.trim() !== '',
+  );
+
+  if (
+    data.experience.length === 0 &&
+    data.education.length === 0 &&
+    data.projects.length === 0 &&
+    !hasTechnicalSkills
+  ) {
+    errors.push('Add at least one education, experience, project, or technical skill entry.');
+  }
+
+  const hasInvalidExperience = data.experience.some(
+    (entry) => entry.role.trim() === '' && entry.company.trim() === '',
+  );
+  if (hasInvalidExperience) {
+    errors.push('Each experience entry must include at least role or company.');
+  }
+
+  const hasInvalidProject = data.projects.some((entry) => entry.name.trim() === '');
+  if (hasInvalidProject) {
+    errors.push('Each project entry must include a project name.');
   }
 
   return errors;

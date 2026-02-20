@@ -6,51 +6,78 @@
 
 .paper {
   width: min(100%, 760px);
-  aspect-ratio: 210 / 297;
+  min-height: 100%;
   background: #fff;
   border: 1px solid #d7ddd8;
   box-shadow: 0 18px 45px rgba(19, 42, 54, 0.08);
-  padding: 1.5rem;
-  overflow: auto;
+  padding: 1.25rem;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid #c9d3d8;
+  padding-bottom: 0.5rem;
 }
 
 .header h1 {
-  font-size: 1.8rem;
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .header p {
-  color: #4f6974;
-  font-size: 0.95rem;
+  color: #3f5964;
+  font-size: 0.88rem;
 }
 
 .section {
-  margin-top: 1rem;
+  margin-top: 0.85rem;
 }
 
 .section h2 {
-  border-bottom: 1px solid #c9d3d8;
-  margin-bottom: 0.5rem;
+  font-size: 1.08rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid #b8c5cc;
+  margin-bottom: 0.45rem;
   padding-bottom: 0.2rem;
-  font-size: 1.1rem;
 }
 
-.section p,
-.section li {
-  color: #2f4a55;
-  line-height: 1.4;
+.entry {
+  margin-bottom: 0.55rem;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.row h3 {
+  font-size: 0.98rem;
+}
+
+.row span {
+  color: #415f69;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.subline {
+  font-style: italic;
+  color: #36525e;
 }
 
 .section ul {
   padding-left: 1rem;
-  display: grid;
-  gap: 0.3rem;
+  margin-top: 0.25rem;
 }
 
-.placeholder {
-  color: #718892;
+.section li,
+.section p {
+  line-height: 1.35;
+  color: #2f4a55;
+}
+
+.section strong {
+  color: #1f3741;
 }

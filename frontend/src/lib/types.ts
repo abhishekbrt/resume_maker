@@ -8,6 +8,7 @@ export interface PersonalInfo {
   phone: string;
   email: string;
   linkedin: string;
+  github: string;
   website: string;
 }
 
@@ -26,16 +27,33 @@ export interface EducationEntry {
   institution: string;
   location: string;
   degree: string;
-  graduationDate: string;
+  startDate: string;
+  endDate: string;
   bullets: string[];
 }
 
 export interface ResumeData {
   personalInfo: PersonalInfo;
-  summary: string;
   experience: ExperienceEntry[];
   education: EducationEntry[];
-  skills: string[];
+  projects: ProjectEntry[];
+  technicalSkills: TechnicalSkills;
+}
+
+export interface ProjectEntry {
+  id: string;
+  name: string;
+  techStack: string;
+  startDate: string;
+  endDate: string;
+  bullets: string[];
+}
+
+export interface TechnicalSkills {
+  languages: string;
+  frameworks: string;
+  developerTools: string;
+  libraries: string;
 }
 
 export interface ResumeSettings {

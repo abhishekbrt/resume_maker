@@ -16,6 +16,10 @@
   font-size: 1.1rem;
 }
 
+.section h3 {
+  font-size: 0.98rem;
+}
+
 .grid {
   display: grid;
   gap: 0.65rem;
@@ -39,13 +43,7 @@
   background: #fff;
 }
 
-.skillForm {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.skillForm button,
-.skillList button {
+.section button {
   border: 0;
   border-radius: 0.45rem;
   background: #143642;
@@ -54,20 +52,35 @@
   cursor: pointer;
 }
 
-.skillList {
-  list-style: none;
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entryCard {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid #d7ddd8;
+  border-radius: 0.55rem;
+  padding: 0.75rem;
+  background: #f7fafb;
+}
+
+.bulletBlock {
   display: grid;
   gap: 0.5rem;
 }
 
-.skillList li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f4f7f8;
-  border: 1px solid #d7ddd8;
-  border-radius: 0.45rem;
-  padding: 0.45rem 0.55rem;
+.bulletRow {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: 1fr auto;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
 }
 
 .empty {
@@ -80,8 +93,12 @@
   gap: 0.5rem;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bulletRow {
     grid-template-columns: 1fr;
   }
 }

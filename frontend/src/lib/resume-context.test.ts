@@ -13,7 +13,10 @@ function reduce(state: ResumeState, action: ResumeAction): ResumeState {
 
 describe('resumeReducer', () => {
   it('updates personal info fields', () => {
-    const initial = { data: createEmptyResumeData(), settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' } };
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+    };
 
     const next = reduce(initial, {
       type: 'UPDATE_PERSONAL_INFO',
@@ -24,13 +27,61 @@ describe('resumeReducer', () => {
     expect(next.data.personalInfo.firstName).toBe('Ada');
   });
 
-  it('adds and removes skills', () => {
-    const initial = { data: createEmptyResumeData(), settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' } };
+  it('adds and edits an experience entry with bullets', () => {
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+    };
 
-    const added = reduce(initial, { type: 'ADD_SKILL', value: 'Go' });
-    expect(added.data.skills).toEqual(['Go']);
+    const withEntry = reduce(initial, { type: 'ADD_EXPERIENCE' });
+    expect(withEntry.data.experience).toHaveLength(1);
 
-    const removed = reduce(added, { type: 'REMOVE_SKILL', index: 0 });
-    expect(removed.data.skills).toEqual([]);
+    const updated = reduce(withEntry, {
+      type: 'UPDATE_EXPERIENCE_FIELD',
+      index: 0,
+      field: 'company',
+      value: 'Southwestern University',
+    });
+    expect(updated.data.experience[0]?.company).toBe('Southwestern University');
+
+    const withBullet = reduce(updated, { type: 'ADD_EXPERIENCE_BULLET', index: 0 });
+    expect(withBullet.data.experience[0]?.bullets).toHaveLength(1);
+
+    const editedBullet = reduce(withBullet, {
+      type: 'UPDATE_EXPERIENCE_BULLET',
+      index: 0,
+      bulletIndex: 0,
+      value: 'Developed a REST API using FastAPI and PostgreSQL.',
+    });
+    expect(editedBullet.data.experience[0]?.bullets[0]).toContain('REST API');
+  });
+
+  it('adds and removes project entries', () => {
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+    };
+
+    const added = reduce(initial, { type: 'ADD_PROJECT' });
+    expect(added.data.projects).toHaveLength(1);
+
+    const removed = reduce(added, { type: 'REMOVE_PROJECT', index: 0 });
+    expect(removed.data.projects).toHaveLength(0);
+  });
+
+  it('updates categorized technical skills fields', () => {
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+    };
+
+    const next = reduce(initial, {
+      type: 'UPDATE_TECHNICAL_SKILLS_FIELD',
+      field: 'languages',
+      value: 'Java, Python, C++',
+    });
+
+    expect(next.data.technicalSkills.languages).toBe('Java, Python, C++');
+    expect(next.data.technicalSkills.frameworks).toBe('');
   });
 });
