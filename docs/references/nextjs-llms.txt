@@ -1,0 +1,165 @@
+# Next.js Reference — For LLMs
+
+> Reference document for AI agents working on the Resume Maker frontend.
+
+---
+
+## Project Setup
+
+- **Framework**: Next.js 14+ with App Router
+- **Language**: TypeScript (strict mode)
+- **Package Manager**: npm
+- **Styling**: Vanilla CSS with CSS Modules
+- **State Management**: React Context + useReducer
+
+---
+
+## App Router Conventions
+
+### File Structure
+```
+src/app/
+├── layout.tsx          # Root layout (html, body, providers)
+├── page.tsx            # Landing page (/)
+├── globals.css         # Global styles
+├── editor/
+│   ├── page.tsx        # Resume editor (/editor)
+│   └── layout.tsx      # Editor-specific layout
+├── login/
+│   └── page.tsx        # Login page
+├── signup/
+│   └── page.tsx        # Signup page
+├── dashboard/
+│   └── page.tsx        # User's saved resumes
+└── api/                # BFF API routes (optional, proxy to Go)
+    └── ...
+```
+
+### Key Conventions
+- `page.tsx` = route page component (server component by default)
+- `layout.tsx` = shared layout (wraps children)
+- `'use client'` directive = marks a client component
+- Server components cannot use hooks, event handlers, or browser APIs
+- Client components are needed for: forms, interactivity, state, effects
+
+---
+
+## Component Organization
+
+```
+src/components/
+├── editor/
+│   ├── ResumeForm.tsx          # Main form container
+│   ├── PersonalInfoSection.tsx # Personal info fields
+│   ├── SummarySection.tsx      # Summary textarea
+│   ├── ExperienceSection.tsx   # Work experience entries
+│   ├── EducationSection.tsx    # Education entries
+│   ├── SkillsSection.tsx       # Skills & other section
+│   ├── SectionAccordion.tsx    # Collapsible section wrapper
+│   └── AddEntryButton.tsx      # "+ Add" button component
+├── preview/
+│   ├── ResumePreview.tsx       # Live preview container
+│   ├── PreviewHeader.tsx       # Name + contact render
+│   ├── PreviewSection.tsx      # Section render
+│   └── PreviewEntry.tsx        # Entry (job/education) render
+├── common/
+│   ├── Button.tsx
+│   ├── Input.tsx
+│   ├── TextArea.tsx
+│   ├── Select.tsx
+│   └── Toast.tsx
+├── layout/
+│   ├── Navbar.tsx
+│   └── Footer.tsx
+└── photo/
+    ├── PhotoUpload.tsx         # Upload + crop UI
+    └── PhotoPreview.tsx        # Circular preview
+```
+
+---
+
+## State Management Pattern
+
+### Resume Context
+
+```typescript
+// lib/resume-context.tsx
+type ResumeState = {
+  personalInfo: PersonalInfo;
+  summary: string;
+  experience: ExperienceEntry[];
+  education: EducationEntry[];
+  skills: string[];
+  customSections: CustomSection[];
+  sectionOrder: string[];
+  settings: ResumeSettings;
+};
+
+type ResumeAction =
+  | { type: 'SET_PERSONAL_INFO'; payload: Partial<PersonalInfo> }
+  | { type: 'SET_SUMMARY'; payload: string }
+  | { type: 'ADD_EXPERIENCE'; payload: ExperienceEntry }
+  | { type: 'UPDATE_EXPERIENCE'; payload: { id: string; data: Partial<ExperienceEntry> } }
+  | { type: 'REMOVE_EXPERIENCE'; payload: string }
+  | { type: 'REORDER_SECTIONS'; payload: string[] }
+  // ... etc
+```
+
+### Data Flow
+```
+User types in form
+  → dispatch action to reducer
+  → state updates
+  → Preview component re-renders with new data
+  → localStorage auto-saves (debounced)
+```
+
+---
+
+## API Client Pattern
+
+```typescript
+// lib/api.ts
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    ...options,
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json();
+}
+```
+
+---
+
+## Key Patterns
+
+### Debounced Preview Updates
+- Form onChange → debounce 300ms → update state → re-render preview
+- Prevents janky updates while typing rapidly
+
+### localStorage Persistence
+- Auto-save resume state to localStorage every 2 seconds
+- On page load, hydrate from localStorage if data exists
+- Clear on explicit "New Resume" action
+
+### PDF Download
+- POST resume data to Go backend
+- Receive PDF as blob
+- Create object URL and trigger download
+- Clean up object URL after download
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_API_URL` | Go backend API URL | `http://localhost:8080` |
+| `NEXT_PUBLIC_APP_NAME` | Application name | `Resume Maker` |

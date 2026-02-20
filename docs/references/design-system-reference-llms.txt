@@ -1,0 +1,141 @@
+# Design System Reference — For LLMs
+
+> Reference document for AI agents and developers describing the visual design system used in the Resume Maker application.
+
+---
+
+## Brand Identity
+
+- **Product Name**: Resume Maker
+- **Tone**: Professional, clean, trustworthy, modern
+- **Target Audience**: Job seekers — developers, analysts, managers, fresh graduates
+
+---
+
+## Color Palette
+
+### Primary Colors
+| Name | Hex | Usage |
+|------|-----|-------|
+| Charcoal | `#1a1a2e` | Primary text, headers |
+| Slate | `#16213e` | Secondary backgrounds |
+| White | `#ffffff` | Page background, cards |
+| Accent Blue | `#0f3460` | CTA buttons, links |
+| Highlight | `#e94560` | Alerts, errors, highlights |
+
+### Neutral Colors
+| Name | Hex | Usage |
+|------|-----|-------|
+| Gray 50 | `#fafafa` | Background surfaces |
+| Gray 100 | `#f5f5f5` | Card backgrounds |
+| Gray 300 | `#d4d4d4` | Borders, dividers |
+| Gray 500 | `#737373` | Secondary text |
+| Gray 700 | `#404040` | Body text |
+| Gray 900 | `#171717` | Headings |
+
+---
+
+## Typography
+
+### Application UI
+| Element | Font | Weight | Size |
+|---------|------|--------|------|
+| Headings (h1) | Inter | 700 (Bold) | 32px |
+| Headings (h2) | Inter | 600 (Semibold) | 24px |
+| Body | Inter | 400 (Regular) | 16px |
+| Small / Caption | Inter | 400 | 14px |
+| Button text | Inter | 500 (Medium) | 14px |
+
+### Resume Template Fonts (user-selectable)
+| Option | Font Family | Category |
+|--------|-------------|----------|
+| Classic | Times New Roman | Serif |
+| Elegant | Garamond | Serif |
+| Modern | Calibri | Sans-serif |
+| Clean | Arial | Sans-serif |
+
+---
+
+## Spacing System
+
+Based on 4px grid:
+| Token | Value |
+|-------|-------|
+| `space-1` | 4px |
+| `space-2` | 8px |
+| `space-3` | 12px |
+| `space-4` | 16px |
+| `space-6` | 24px |
+| `space-8` | 32px |
+| `space-12` | 48px |
+| `space-16` | 64px |
+
+---
+
+## Component Patterns
+
+### Buttons
+- **Primary**: Solid background (Accent Blue), white text, 8px border-radius
+- **Secondary**: Outlined, Accent Blue border + text, transparent background
+- **Ghost**: No border, text only, hover shows subtle background
+- **Sizes**: Small (32px height), Medium (40px), Large (48px)
+
+### Form Inputs
+- Height: 40px
+- Border: 1px solid Gray 300
+- Border-radius: 6px
+- Focus: 2px Accent Blue ring
+- Label: Above input, Gray 700, 14px, Medium weight
+
+### Cards
+- Background: White
+- Border: 1px solid Gray 100
+- Border-radius: 12px
+- Shadow: `0 1px 3px rgba(0,0,0,0.1)`
+- Padding: 24px
+
+### Section Accordion (Editor)
+- Collapsed: Section title + chevron icon
+- Expanded: Section title + form fields + collapse chevron
+- Transition: 200ms ease
+
+---
+
+## Resume Template Styling
+
+These values define the visual appearance of the PDF template:
+
+| Element | Style |
+|---------|-------|
+| Page size | A4 (210mm × 297mm) |
+| Margins | 20mm top, 15mm sides, 20mm bottom |
+| Name | Centered, uppercase with letter-spacing, 18pt, bold |
+| Contact line | Centered, 9pt, bullet separated |
+| Section header | Uppercase, bold, 11pt, with horizontal rule below |
+| Company/date | Company bold left-aligned, date right-aligned, 10pt |
+| Job title | Bold, 10pt |
+| Bullets | Standard bullet, left indent 15mm, 10pt |
+| Body text | 10pt, regular weight |
+| Profile photo | 80×80px, circular crop, top-right corner, optional |
+
+---
+
+## Responsive Breakpoints
+
+| Name | Width | Layout |
+|------|-------|--------|
+| Desktop | ≥1024px | Side-by-side editor + preview |
+| Tablet | 768-1023px | Stacked (editor above, preview below) |
+| Mobile | <768px | Editor only, with "Preview" toggle button |
+
+---
+
+## Animations
+
+| Element | Animation | Duration | Easing |
+|---------|-----------|----------|--------|
+| Button hover | Background lighten | 150ms | ease |
+| Accordion expand | Height reveal | 200ms | ease-out |
+| Toast notification | Slide in from top | 300ms | ease-out |
+| Page transitions | Fade | 200ms | ease |
+| Download spinner | Rotate | 1000ms | linear (infinite) |

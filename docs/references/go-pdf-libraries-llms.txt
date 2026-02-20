@@ -1,0 +1,113 @@
+# Go PDF Libraries Reference — For LLMs
+
+> Reference document comparing Go libraries for PDF generation in the Resume Maker project.
+
+---
+
+## Library Comparison
+
+### 1. maroto (v2)
+- **Repo**: github.com/johnfercher/maroto/v2
+- **Approach**: Builder-pattern API for constructing PDF documents
+- **Best for**: Structured documents like invoices, reports, resumes
+- **Pros**:
+  - Clean, declarative API
+  - Built-in support for headers, footers, tables, images
+  - Good for repeating layouts
+  - Actively maintained
+- **Cons**:
+  - Less control over pixel-perfect positioning
+  - Learning curve for the builder pattern
+  - Limited font customization compared to raw PDF manipulation
+- **Example use**: Define resume sections as rows/columns, add text/images, export PDF
+
+### 2. gofpdf (jung-kurt/gofpdf)
+- **Repo**: github.com/jung-kurt/gofpdf (archived, use go-pdf/fpdf fork)
+- **Approach**: Low-level PDF construction with manual positioning
+- **Best for**: Full control over every element's position and styling
+- **Pros**:
+  - Complete control over layout
+  - Support for custom fonts (TrueType)
+  - Image embedding support
+  - Lightweight, no external dependencies
+- **Cons**:
+  - Very verbose code for complex layouts
+  - Manual coordinate calculation required
+  - No built-in template system
+  - Original repo archived (use fork: github.com/go-pdf/fpdf)
+- **Example use**: Manually place each text block, line, and image at exact coordinates
+
+### 3. chromedp
+- **Repo**: github.com/chromedp/chromedp
+- **Approach**: Control Chrome DevTools Protocol — render HTML/CSS then print to PDF
+- **Best for**: Complex, CSS-heavy layouts where HTML/CSS is easier than programmatic PDF
+- **Pros**:
+  - Use HTML/CSS for template design (familiar, flexible)
+  - Perfect CSS rendering (fonts, gradients, etc.)
+  - Can reuse frontend template components for PDF
+  - Connection pooling for efficiency
+- **Cons**:
+  - Requires Chrome/Chromium installed on server
+  - Higher memory usage (~50-80MB per shared browser instance)
+  - Slower than native PDF libraries (~500ms-1s per PDF)
+  - Docker image size increases significantly
+- **Example use**: Render Go template as HTML string → chromedp prints to PDF
+
+### 4. wkhtmltopdf (Go bindings)
+- **Repo**: github.com/SebastiaanKlipworthy/go-wkhtmltopdf
+- **Approach**: Wrapper around wkhtmltopdf binary for HTML→PDF
+- **Pros**:
+  - Good HTML/CSS support
+  - Lighter than full Chrome
+  - Well-established tool
+- **Cons**:
+  - External binary dependency
+  - CSS support not as complete as Chrome
+  - Project is in maintenance mode
+  - Security concerns with untrusted HTML input
+
+### 5. go-pdf/pdfcpu
+- **Repo**: github.com/pdfcpu/pdfcpu
+- **Approach**: PDF processing (merge, split, optimize, watermark)
+- **Best for**: Post-processing PDFs, not generation
+- **Note**: Could be used alongside a generation library for optimization
+
+---
+
+## Recommendation for Resume Maker
+
+### Primary: go-pdf/fpdf (gofpdf fork)
+- Use for the initial template since our layout is structured and single-column
+- Full control over positioning means we can perfectly match the reference template
+- Lightweight, no external dependencies, fast generation (~50-200ms)
+
+### Fallback: chromedp
+- If we add more complex templates in the future (multi-column, complex CSS)
+- Use browser pooling to manage memory
+- Shares design language with frontend preview (both HTML/CSS)
+
+### Hybrid Approach (Future)
+- Simple templates: native Go PDF (fast, lightweight)
+- Complex templates: chromedp HTML→PDF (flexible, CSS-rich)
+- Choose at render time based on template type
+
+---
+
+## Font Handling
+
+For native Go PDF generation:
+- Embed TrueType font files in the binary
+- Required fonts: Times New Roman, Garamond, Calibri, Arial
+- Use `fpdf.AddUTF8Font()` for Unicode support
+- Store fonts in `backend/internal/pdfgen/assets/fonts/`
+
+---
+
+## Image Handling
+
+For profile photos in Go PDF:
+- Accept JPEG and PNG formats
+- Resize/crop on the server before embedding (use `imaging` library)
+- Target size: 80×80px at 300 DPI = 240×240px actual
+- Circular mask: render image inside a clipping circle
+- Positioning: top-right corner, offset from margins
