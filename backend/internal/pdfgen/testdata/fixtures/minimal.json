@@ -1,0 +1,24 @@
+{
+  "request": {
+    "data": {
+      "personalInfo": {
+        "firstName": "Ada",
+        "lastName": "Lovelace",
+        "email": "ada@example.com"
+      },
+      "technicalSkills": {
+        "languages": "Go"
+      }
+    },
+    "settings": {
+      "showPhoto": false,
+      "fontSize": "medium",
+      "fontFamily": "times"
+    }
+  },
+  "expect": {
+    "hasURI": true,
+    "hasImage": false,
+    "minPageMarkers": 1
+  }
+}

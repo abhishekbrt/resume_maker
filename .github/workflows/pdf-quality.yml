@@ -1,0 +1,29 @@
+name: pdf-quality
+
+on:
+  pull_request:
+    paths:
+      - 'backend/internal/pdfgen/**'
+      - 'backend/internal/service/**'
+      - 'backend/internal/handlers/**'
+      - 'frontend/src/lib/types.ts'
+      - 'scripts/pdf-quality-check.sh'
+      - '.github/workflows/pdf-quality.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: Run PDF quality gate
+        run: bash scripts/pdf-quality-check.sh

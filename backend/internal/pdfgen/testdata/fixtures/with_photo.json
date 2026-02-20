@@ -1,0 +1,26 @@
+{
+  "request": {
+    "data": {
+      "personalInfo": {
+        "firstName": "Abhishek",
+        "lastName": "Bharti",
+        "email": "abhishek@example.com",
+        "github": "github.com/abhishekbhrt"
+      },
+      "technicalSkills": {
+        "languages": "Go"
+      }
+    },
+    "settings": {
+      "showPhoto": true,
+      "fontSize": "medium",
+      "fontFamily": "calibri"
+    },
+    "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7YhJkAAAAASUVORK5CYII="
+  },
+  "expect": {
+    "hasURI": true,
+    "hasImage": true,
+    "minPageMarkers": 1
+  }
+}

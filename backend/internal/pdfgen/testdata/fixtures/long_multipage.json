@@ -1,0 +1,128 @@
+{
+  "request": {
+    "data": {
+      "personalInfo": {
+        "firstName": "Abhishek",
+        "lastName": "Bharti",
+        "email": "abhishek@example.com",
+        "github": "github.com/abhishekbhrt"
+      },
+      "experience": [
+        {
+          "company": "Google",
+          "location": "Mountain View, California",
+          "role": "Backend Engineer Intern",
+          "startDate": "April 2025",
+          "endDate": "Dec 2025",
+          "bullets": [
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load.",
+            "Implemented concurrency-heavy backend systems and validated throughput under sustained load."
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Space Invaders Game (Go)",
+          "techStack": "Golang",
+          "startDate": "2024",
+          "endDate": "2025",
+          "bullets": [
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison.",
+            "Implemented worker-pool pattern for concurrent processing and performance comparison."
+          ]
+        }
+      ],
+      "technicalSkills": {
+        "languages": "Java, Golang, Python",
+        "frameworks": "React, Node.js, PyTorch",
+        "developerTools": "Git, Docker"
+      }
+    },
+    "settings": {
+      "showPhoto": false,
+      "fontSize": "medium",
+      "fontFamily": "arial"
+    }
+  },
+  "expect": {
+    "hasURI": true,
+    "hasImage": false,
+    "minPageMarkers": 2
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "request": {
+    "data": {
+      "personalInfo": {
+        "firstName": "Jake",
+        "lastName": "Ryan",
+        "phone": "123-456-7890",
+        "email": "jake@ksu.edu",
+        "linkedin": "linkedin.com/in/jake",
+        "github": "github.com/jake",
+        "website": "jake.dev",
+        "otherLinks": [
+          {
+            "label": "LeetCode",
+            "url": "leetcode.com/jake"
+          }
+        ]
+      },
+      "experience": [
+        {
+          "company": "Texas A&M University",
+          "location": "College Station, TX",
+          "role": "Undergraduate Research Assistant",
+          "startDate": "June 2020",
+          "endDate": "Present",
+          "bullets": [
+            "Developed and maintained a full-stack web application."
+          ]
+        }
+      ],
+      "technicalSkills": {
+        "languages": "Go, Python",
+        "frameworks": "React",
+        "developerTools": "Git, Docker",
+        "libraries": "NumPy"
+      }
+    },
+    "settings": {
+      "showPhoto": false,
+      "fontSize": "medium",
+      "fontFamily": "garamond"
+    }
+  },
+  "expect": {
+    "hasURI": true,
+    "hasImage": false,
+    "minPageMarkers": 1
+  }
+}
