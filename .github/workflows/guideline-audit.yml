@@ -1,0 +1,19 @@
+name: guideline-audit
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  advisory-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run guideline audit (advisory)
+        run: bash scripts/guideline-audit.sh
