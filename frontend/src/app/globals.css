@@ -1,0 +1,39 @@
+:root {
+  --text: #132a36;
+  --background: #f8f6f2;
+  --panel: #ffffff;
+  --border: #d7ddd8;
+  --muted: #506b77;
+  --accent: #c44536;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
