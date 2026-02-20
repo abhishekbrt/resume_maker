@@ -137,7 +137,7 @@ frontend/
 1. **Debounce preview updates**: 300ms after last keystroke
 2. **Memoize preview components**: Use `React.memo` for section components
 3. **Lazy load non-critical components**: Photo upload modal, settings panel
-4. **Font loading**: `next/font` for UI fonts, CSS `@font-face` with `display: swap` for resume fonts
+4. **Font loading**: `next/font` for UI fonts, CSS `@font-face` with `display: swap` for bundled resume fonts shared with PDF rendering
 5. **Image optimization**: Next.js `<Image>` for static assets, client-side resize for uploads
 
 ---

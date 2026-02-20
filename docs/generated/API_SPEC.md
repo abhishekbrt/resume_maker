@@ -151,6 +151,11 @@ The filename is derived from `data.personalInfo.firstName` and
 - If `photo` is provided, it must be a valid base64-encoded JPEG or PNG, max 5MB decoded
 - `settings.fontFamily` must be one of: `times`, `garamond`, `calibri`, `arial`
 - `settings.fontSize` must be one of: `small`, `medium`, `large`
+- `settings.fontFamily` is rendered with embedded open-source equivalents in preview/PDF:
+  - `times` -> Liberation Serif
+  - `garamond` -> DejaVu Serif
+  - `calibri` -> DejaVu Sans
+  - `arial` -> Liberation Sans
 
 **Rate limit:** 10 requests per minute per IP.
 
@@ -596,6 +601,8 @@ condensed reference for API consumers:
 | `showPhoto`  | bool   | `true`, `false`                         | `false`  |
 | `fontSize`   | string | `small`, `medium`, `large`              | `medium` |
 | `fontFamily` | string | `times`, `garamond`, `calibri`, `arial` | `times`  |
+
+`fontFamily` options are backed by bundled open-source fonts for consistent preview/PDF output.
 
 ---
 

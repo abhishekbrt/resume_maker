@@ -100,7 +100,7 @@ The preview panel renders the resume as HTML/CSS, matching the PDF output as clo
 - **Container**: White background, A4 aspect ratio, drop shadow
 - **Scale**: CSS `transform: scale(X)` to fit the panel width
 - **Page breaks**: Visual indicator showing where page 2 would start
-- **Fonts**: Load the same fonts used in PDF generation (Times, Garamond, etc.)
+- **Fonts**: Load the same bundled fonts used in PDF generation for each selector option (`times`, `garamond`, `calibri`, `arial`)
 - **Updates**: React re-render on state change, debounced 300ms from form input
 
 ---
