@@ -75,11 +75,43 @@ func validate(req models.GeneratePDFRequest) []models.ValidationErrorDetail {
 		})
 	}
 
-	if len(req.Data.Experience) == 0 && len(req.Data.Education) == 0 && len(req.Data.Skills) == 0 {
+	hasTechnicalSkills := strings.TrimSpace(req.Data.TechnicalSkills.Languages) != "" ||
+		strings.TrimSpace(req.Data.TechnicalSkills.Frameworks) != "" ||
+		strings.TrimSpace(req.Data.TechnicalSkills.DeveloperTools) != "" ||
+		strings.TrimSpace(req.Data.TechnicalSkills.Libraries) != ""
+
+	if len(req.Data.Experience) == 0 && len(req.Data.Education) == 0 && len(req.Data.Projects) == 0 && !hasTechnicalSkills {
 		details = append(details, models.ValidationErrorDetail{
 			Field:   "data",
-			Message: "at least one content section must be filled (experience, education, or skills)",
+			Message: "at least one content section must be filled (experience, education, projects, or technicalSkills)",
 		})
+	}
+
+	for index, exp := range req.Data.Experience {
+		if strings.TrimSpace(exp.Role) == "" && strings.TrimSpace(exp.Company) == "" {
+			details = append(details, models.ValidationErrorDetail{
+				Field:   fmt.Sprintf("data.experience[%d]", index),
+				Message: "must include role or company",
+			})
+		}
+	}
+
+	for index, edu := range req.Data.Education {
+		if strings.TrimSpace(edu.Institution) == "" {
+			details = append(details, models.ValidationErrorDetail{
+				Field:   fmt.Sprintf("data.education[%d].institution", index),
+				Message: "must not be empty",
+			})
+		}
+	}
+
+	for index, project := range req.Data.Projects {
+		if strings.TrimSpace(project.Name) == "" {
+			details = append(details, models.ValidationErrorDetail{
+				Field:   fmt.Sprintf("data.projects[%d].name", index),
+				Message: "must not be empty",
+			})
+		}
 	}
 
 	fontFamily := strings.ToLower(strings.TrimSpace(req.Settings.FontFamily))

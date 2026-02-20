@@ -9,11 +9,11 @@ type GeneratePDFRequest struct {
 
 // ResumeData contains all resume sections used by both preview and PDF rendering.
 type ResumeData struct {
-	PersonalInfo PersonalInfo      `json:"personalInfo"`
-	Summary      string            `json:"summary,omitempty"`
-	Experience   []ExperienceEntry `json:"experience,omitempty"`
-	Education    []EducationEntry  `json:"education,omitempty"`
-	Skills       []string          `json:"skills,omitempty"`
+	PersonalInfo    PersonalInfo      `json:"personalInfo"`
+	Experience      []ExperienceEntry `json:"experience,omitempty"`
+	Education       []EducationEntry  `json:"education,omitempty"`
+	Projects        []ProjectEntry    `json:"projects,omitempty"`
+	TechnicalSkills TechnicalSkills   `json:"technicalSkills,omitempty"`
 }
 
 // PersonalInfo is the header content for the resume.
@@ -24,6 +24,7 @@ type PersonalInfo struct {
 	Phone     string `json:"phone,omitempty"`
 	Email     string `json:"email,omitempty"`
 	LinkedIn  string `json:"linkedin,omitempty"`
+	GitHub    string `json:"github,omitempty"`
 	Website   string `json:"website,omitempty"`
 }
 
@@ -40,12 +41,31 @@ type ExperienceEntry struct {
 
 // EducationEntry represents a single education entry.
 type EducationEntry struct {
-	ID             string   `json:"id,omitempty"`
-	Institution    string   `json:"institution"`
-	Location       string   `json:"location,omitempty"`
-	Degree         string   `json:"degree"`
-	GraduationDate string   `json:"graduationDate,omitempty"`
-	Bullets        []string `json:"bullets,omitempty"`
+	ID          string   `json:"id,omitempty"`
+	Institution string   `json:"institution"`
+	Location    string   `json:"location,omitempty"`
+	Degree      string   `json:"degree"`
+	StartDate   string   `json:"startDate,omitempty"`
+	EndDate     string   `json:"endDate,omitempty"`
+	Bullets     []string `json:"bullets,omitempty"`
+}
+
+// ProjectEntry represents a project in the projects section.
+type ProjectEntry struct {
+	ID        string   `json:"id,omitempty"`
+	Name      string   `json:"name"`
+	TechStack string   `json:"techStack,omitempty"`
+	StartDate string   `json:"startDate,omitempty"`
+	EndDate   string   `json:"endDate,omitempty"`
+	Bullets   []string `json:"bullets,omitempty"`
+}
+
+// TechnicalSkills stores categorized technical skills.
+type TechnicalSkills struct {
+	Languages      string `json:"languages,omitempty"`
+	Frameworks     string `json:"frameworks,omitempty"`
+	DeveloperTools string `json:"developerTools,omitempty"`
+	Libraries      string `json:"libraries,omitempty"`
 }
 
 // ResumeSetting configures PDF rendering options.

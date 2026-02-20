@@ -56,8 +56,23 @@ func TestGeneratePDFSuccess(t *testing.T) {
 				"lastName":  "Lovelace",
 				"email":     "ada@example.com",
 			},
-			"summary": "Pioneer in computing.",
-			"skills":  []string{"Go", "Distributed Systems"},
+			"experience": []map[string]any{
+				{
+					"company":   "Analytical Engines Inc.",
+					"role":      "Research Assistant",
+					"startDate": "June 2020",
+					"endDate":   "Present",
+					"bullets": []string{
+						"Designed robust analytical workflows.",
+					},
+				},
+			},
+			"technicalSkills": map[string]any{
+				"languages":      "Go, Python",
+				"frameworks":     "React",
+				"developerTools": "Docker, Git",
+				"libraries":      "NumPy",
+			},
 		},
 		"settings": map[string]any{
 			"showPhoto":  false,
@@ -91,6 +106,41 @@ func TestGeneratePDFSuccess(t *testing.T) {
 	}
 }
 
+func TestGeneratePDFSuccessWithTechnicalSkillsOnly(t *testing.T) {
+	router := handlers.NewRouter("1.0.0")
+	payload := map[string]any{
+		"data": map[string]any{
+			"personalInfo": map[string]any{
+				"firstName": "Jake",
+				"lastName":  "Ryan",
+			},
+			"technicalSkills": map[string]any{
+				"languages": "Java, Python, C++",
+			},
+		},
+		"settings": map[string]any{
+			"showPhoto":  false,
+			"fontSize":   "medium",
+			"fontFamily": "times",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resumes/generate-pdf", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d, body=%s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestGeneratePDFValidationError(t *testing.T) {
 	router := handlers.NewRouter("1.0.0")
 	payload := map[string]any{
@@ -99,7 +149,9 @@ func TestGeneratePDFValidationError(t *testing.T) {
 				"firstName": "",
 				"lastName":  "",
 			},
-			"skills": []string{},
+			"technicalSkills": map[string]any{
+				"languages": "",
+			},
 		},
 		"settings": map[string]any{
 			"showPhoto":  false,
