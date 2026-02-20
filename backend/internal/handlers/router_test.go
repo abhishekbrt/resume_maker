@@ -126,3 +126,21 @@ func TestGeneratePDFValidationError(t *testing.T) {
 		t.Fatalf("expected validation error code, got %s", body)
 	}
 }
+
+func TestCORSPreflightAllowsEditorOrigin(t *testing.T) {
+	router := handlers.NewRouter("1.0.0")
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/resumes/generate-pdf", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for preflight, got %d", rr.Code)
+	}
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
+		t.Fatalf("expected allowed origin header, got %q", got)
+	}
+}
