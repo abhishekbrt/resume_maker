@@ -81,6 +81,58 @@ export function ResumeForm() {
               placeholder="github.com/jake"
             />
           </label>
+          <label>
+            Website
+            <input
+              name="website"
+              value={state.data.personalInfo.website}
+              onChange={(event) =>
+                dispatch({ type: 'UPDATE_PERSONAL_INFO', field: 'website', value: event.target.value })
+              }
+              placeholder="yourname.dev"
+            />
+          </label>
+        </div>
+        <div className={styles.bulletBlock}>
+          <div className={styles.sectionHeader}>
+            <h3>Other Links (LeetCode, Codeforces, etc.)</h3>
+            <button type="button" onClick={() => dispatch({ type: 'ADD_PERSONAL_LINK' })}>
+              Add Link
+            </button>
+          </div>
+          {state.data.personalInfo.otherLinks.map((link, index) => (
+            <div key={link.id} className={styles.linkRow}>
+              <input
+                name={`other-link-label-${index}`}
+                value={link.label}
+                onChange={(event) =>
+                  dispatch({
+                    type: 'UPDATE_PERSONAL_LINK',
+                    index,
+                    field: 'label',
+                    value: event.target.value,
+                  })
+                }
+                placeholder="LeetCode"
+              />
+              <input
+                name={`other-link-url-${index}`}
+                value={link.url}
+                onChange={(event) =>
+                  dispatch({
+                    type: 'UPDATE_PERSONAL_LINK',
+                    index,
+                    field: 'url',
+                    value: event.target.value,
+                  })
+                }
+                placeholder="leetcode.com/your-handle"
+              />
+              <button type="button" onClick={() => dispatch({ type: 'REMOVE_PERSONAL_LINK', index })}>
+                Remove
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 

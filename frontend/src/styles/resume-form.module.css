@@ -79,6 +79,12 @@
   grid-template-columns: 1fr auto;
 }
 
+.linkRow {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: 0.8fr 1.2fr auto;
+}
+
 .fullWidth {
   grid-column: 1 / -1;
 }
@@ -99,6 +105,10 @@
   }
 
   .bulletRow {
+    grid-template-columns: 1fr;
+  }
+
+  .linkRow {
     grid-template-columns: 1fr;
   }
 }

@@ -55,6 +55,15 @@ func TestGeneratePDFSuccess(t *testing.T) {
 				"firstName": "Ada",
 				"lastName":  "Lovelace",
 				"email":     "ada@example.com",
+				"linkedin":  "linkedin.com/in/ada",
+				"github":    "github.com/ada",
+				"website":   "adalovelace.dev",
+				"otherLinks": []map[string]any{
+					{
+						"label": "LeetCode",
+						"url":   "leetcode.com/ada",
+					},
+				},
 			},
 			"experience": []map[string]any{
 				{
@@ -103,6 +112,9 @@ func TestGeneratePDFSuccess(t *testing.T) {
 	}
 	if !bytes.HasPrefix(rr.Body.Bytes(), []byte("%PDF")) {
 		t.Fatalf("expected PDF bytes to start with %%PDF")
+	}
+	if !bytes.Contains(rr.Body.Bytes(), []byte("/URI")) {
+		t.Fatalf("expected PDF to include clickable URI annotations")
 	}
 }
 

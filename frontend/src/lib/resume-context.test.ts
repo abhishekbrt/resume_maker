@@ -84,4 +84,30 @@ describe('resumeReducer', () => {
     expect(next.data.technicalSkills.languages).toBe('Java, Python, C++');
     expect(next.data.technicalSkills.frameworks).toBe('');
   });
+
+  it('adds and updates custom personal links', () => {
+    const initial = {
+      data: createEmptyResumeData(),
+      settings: { showPhoto: false, fontSize: 'medium', fontFamily: 'times' },
+    };
+
+    const withLink = reduce(initial, { type: 'ADD_PERSONAL_LINK' });
+    expect(withLink.data.personalInfo.otherLinks).toHaveLength(1);
+
+    const updatedLabel = reduce(withLink, {
+      type: 'UPDATE_PERSONAL_LINK',
+      index: 0,
+      field: 'label',
+      value: 'LeetCode',
+    });
+    const updatedUrl = reduce(updatedLabel, {
+      type: 'UPDATE_PERSONAL_LINK',
+      index: 0,
+      field: 'url',
+      value: 'leetcode.com/abhishek',
+    });
+
+    expect(updatedUrl.data.personalInfo.otherLinks[0]?.label).toBe('LeetCode');
+    expect(updatedUrl.data.personalInfo.otherLinks[0]?.url).toBe('leetcode.com/abhishek');
+  });
 });

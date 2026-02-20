@@ -29,6 +29,20 @@
   font-size: 0.88rem;
 }
 
+.headerContactLine {
+  line-height: 1.5;
+}
+
+.headerLink {
+  color: #2f5f79;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.separator {
+  color: #6a7f89;
+}
+
 .section {
   margin-top: 0.85rem;
 }

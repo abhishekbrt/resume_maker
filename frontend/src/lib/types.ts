@@ -10,6 +10,13 @@ export interface PersonalInfo {
   linkedin: string;
   github: string;
   website: string;
+  otherLinks: PersonalLink[];
+}
+
+export interface PersonalLink {
+  id: string;
+  label: string;
+  url: string;
 }
 
 export interface ExperienceEntry {

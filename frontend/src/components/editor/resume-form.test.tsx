@@ -15,5 +15,7 @@ describe('ResumeForm', () => {
     expect(screen.getByLabelText('First Name')).toHaveAttribute('name', 'firstName');
     expect(screen.getByLabelText('Last Name')).toHaveAttribute('name', 'lastName');
     expect(screen.getByLabelText('Email')).toHaveAttribute('name', 'email');
+    expect(screen.getByLabelText('Website')).toHaveAttribute('name', 'website');
+    expect(screen.getByRole('button', { name: 'Add Link' })).toBeInTheDocument();
   });
 });

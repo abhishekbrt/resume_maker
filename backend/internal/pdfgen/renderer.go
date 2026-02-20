@@ -26,6 +26,11 @@ type layoutConfig struct {
 	skillLabelW    float64
 }
 
+type contactToken struct {
+	text string
+	url  string
+}
+
 func defaultLayout() layoutConfig {
 	return layoutConfig{
 		leftMargin:     20,
@@ -118,15 +123,9 @@ func renderHeader(pdf *fpdf.Fpdf, req models.GeneratePDFRequest, fontFamily stri
 	fullName := strings.TrimSpace(req.Data.PersonalInfo.FirstName + " " + req.Data.PersonalInfo.LastName)
 	pdf.CellFormat(0, 8, fullName, "", 1, "C", false, 0, "")
 
-	pdf.SetFont(fontFamily, "", fontSize)
-	contact := strings.Join(nonEmpty(
-		req.Data.PersonalInfo.Phone,
-		req.Data.PersonalInfo.Email,
-		req.Data.PersonalInfo.LinkedIn,
-		req.Data.PersonalInfo.GitHub,
-	), " | ")
-	if contact != "" {
-		writeWrappedTextAligned(pdf, fontFamily, "", fontSize, contact, "C", layout)
+	contactTokens := buildHeaderContactTokens(req.Data.PersonalInfo)
+	if len(contactTokens) > 0 {
+		renderCenteredContactTokens(pdf, fontFamily, fontSize, contactTokens, layout)
 	}
 	pdf.Ln(2)
 }
@@ -342,4 +341,109 @@ func max(a int, b int) int {
 		return a
 	}
 	return b
+}
+
+func buildHeaderContactTokens(info models.PersonalInfo) []contactToken {
+	tokens := make([]contactToken, 0, 8)
+
+	appendToken := func(text string, url string) {
+		trimmedText := strings.TrimSpace(text)
+		if trimmedText == "" {
+			return
+		}
+		tokens = append(tokens, contactToken{text: trimmedText, url: normalizeLinkURL(url)})
+	}
+
+	appendToken(info.Phone, "")
+	appendToken(info.Email, "mailto:"+strings.TrimSpace(info.Email))
+	appendToken(info.LinkedIn, info.LinkedIn)
+	appendToken(info.GitHub, info.GitHub)
+	appendToken(info.Website, info.Website)
+
+	for _, link := range info.OtherLinks {
+		display := strings.TrimSpace(link.Label)
+		if display == "" {
+			display = strings.TrimSpace(link.URL)
+		}
+		appendToken(display, link.URL)
+	}
+
+	return tokens
+}
+
+func renderCenteredContactTokens(pdf *fpdf.Fpdf, fontFamily string, fontSize float64, tokens []contactToken, layout layoutConfig) {
+	pdf.SetFont(fontFamily, "", fontSize)
+	pageWidth, _ := pdf.GetPageSize()
+	contentWidth := pageWidth - layout.leftMargin - layout.rightMargin
+
+	lines := make([][]contactToken, 0, 2)
+	currentLine := make([]contactToken, 0, len(tokens)*2)
+	currentWidth := 0.0
+
+	for i, token := range tokens {
+		segmentWidth := pdf.GetStringWidth(token.text)
+		separatorWidth := 0.0
+		if i > 0 {
+			separatorWidth = pdf.GetStringWidth(" | ")
+		}
+
+		if len(currentLine) > 0 && currentWidth+separatorWidth+segmentWidth > contentWidth {
+			lines = append(lines, currentLine)
+			currentLine = make([]contactToken, 0, len(tokens)*2)
+			currentWidth = 0
+			separatorWidth = 0
+		}
+
+		if separatorWidth > 0 {
+			currentLine = append(currentLine, contactToken{text: " | "})
+			currentWidth += separatorWidth
+		}
+
+		currentLine = append(currentLine, token)
+		currentWidth += segmentWidth
+	}
+
+	if len(currentLine) > 0 {
+		lines = append(lines, currentLine)
+	}
+
+	for _, line := range lines {
+		lineWidth := 0.0
+		for _, token := range line {
+			lineWidth += pdf.GetStringWidth(token.text)
+		}
+
+		ensureSpace(pdf, layout.lineHeight, layout)
+		startX := layout.leftMargin + (contentWidth-lineWidth)/2
+		if startX < layout.leftMargin {
+			startX = layout.leftMargin
+		}
+		pdf.SetX(startX)
+
+		for _, token := range line {
+			width := pdf.GetStringWidth(token.text)
+			if token.url != "" {
+				pdf.SetTextColor(47, 95, 121)
+				pdf.CellFormat(width, layout.lineHeight, token.text, "", 0, "L", false, 0, token.url)
+				pdf.SetTextColor(0, 0, 0)
+			} else {
+				pdf.CellFormat(width, layout.lineHeight, token.text, "", 0, "L", false, 0, "")
+			}
+		}
+		pdf.Ln(-1)
+	}
+}
+
+func normalizeLinkURL(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") || strings.HasPrefix(trimmed, "mailto:") || strings.HasPrefix(trimmed, "tel:") {
+		return trimmed
+	}
+	if strings.Contains(trimmed, "@") && !strings.Contains(trimmed, "/") {
+		return "mailto:" + trimmed
+	}
+	return "https://" + trimmed
 }

@@ -18,6 +18,33 @@ function joinDateRange(startDate: string, endDate: string) {
   return `${trimmedStart} – ${trimmedEnd}`;
 }
 
+function normalizeUrl(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return '';
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('mailto:')) {
+    return trimmed;
+  }
+  if (trimmed.includes('@') && !trimmed.includes('/')) {
+    return `mailto:${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
+function renderLink(value: string, displayLabel?: string) {
+  const href = normalizeUrl(value);
+  if (href === '') {
+    return null;
+  }
+  const label = displayLabel?.trim() || value.trim() || href;
+  return (
+    <a className={styles.headerLink} href={href} target="_blank" rel="noreferrer">
+      {label}
+    </a>
+  );
+}
+
 export function ResumePreview() {
   const { state } = useResume();
   const { data } = state;
@@ -25,11 +52,18 @@ export function ResumePreview() {
 
   const fullName = `${personalInfo.firstName} ${personalInfo.lastName}`.trim();
   const headerContacts = [
-    personalInfo.phone,
-    personalInfo.email,
-    personalInfo.linkedin,
-    personalInfo.github,
-  ].filter((value) => value.trim() !== '');
+    { label: personalInfo.phone.trim(), value: personalInfo.phone.trim() },
+    { label: personalInfo.email.trim(), value: personalInfo.email.trim() },
+    { label: personalInfo.linkedin.trim(), value: personalInfo.linkedin.trim() },
+    { label: personalInfo.github.trim(), value: personalInfo.github.trim() },
+    { label: personalInfo.website.trim(), value: personalInfo.website.trim() },
+    ...personalInfo.otherLinks
+      .filter((link) => link.url.trim() !== '')
+      .map((link) => ({
+        label: link.label.trim() || link.url.trim(),
+        value: link.url.trim(),
+      })),
+  ].filter((entry) => entry.value !== '');
 
   const hasTechnicalSkills = Object.values(data.technicalSkills).some((value) => value.trim() !== '');
 
@@ -38,7 +72,34 @@ export function ResumePreview() {
       <article className={styles.paper}>
         <header className={styles.header}>
           <h1>{fullName || 'Your Name'}</h1>
-          <p>{headerContacts.join(' | ') || '123-456-7890 | email@example.com | linkedin.com/in/name | github.com/name'}</p>
+          <p className={styles.headerContactLine}>
+            {headerContacts.length > 0 ? (
+              headerContacts.map((entry, index) => {
+                return (
+                  <span key={`${entry.label}-${entry.value}-${index}`}>
+                    {renderLink(entry.value, entry.label) ?? <span>{entry.label}</span>}
+                    {index < headerContacts.length - 1 && <span className={styles.separator}> | </span>}
+                  </span>
+                );
+              })
+            ) : (
+              <>
+                <span>123-456-7890</span>
+                <span className={styles.separator}> | </span>
+                <a className={styles.headerLink} href="mailto:email@example.com">
+                  email@example.com
+                </a>
+                <span className={styles.separator}> | </span>
+                <a className={styles.headerLink} href="https://linkedin.com/in/name" target="_blank" rel="noreferrer">
+                  linkedin.com/in/name
+                </a>
+                <span className={styles.separator}> | </span>
+                <a className={styles.headerLink} href="https://github.com/name" target="_blank" rel="noreferrer">
+                  github.com/name
+                </a>
+              </>
+            )}
+          </p>
         </header>
 
         {data.education.length > 0 && (

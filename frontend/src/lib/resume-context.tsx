@@ -13,6 +13,7 @@ import {
 import type {
   EducationEntry,
   ExperienceEntry,
+  PersonalLink,
   PersonalInfo,
   ProjectEntry,
   ResumeData,
@@ -75,6 +76,14 @@ function createProjectEntry(): ProjectEntry {
   };
 }
 
+function createPersonalLink(): PersonalLink {
+  return {
+    id: crypto.randomUUID(),
+    label: '',
+    url: '',
+  };
+}
+
 export function createEmptyResumeData(): ResumeData {
   return {
     personalInfo: {
@@ -86,6 +95,7 @@ export function createEmptyResumeData(): ResumeData {
       linkedin: '',
       github: '',
       website: '',
+      otherLinks: [],
     },
     experience: [],
     education: [],
@@ -182,6 +192,19 @@ export type ResumeAction =
       type: 'UPDATE_TECHNICAL_SKILLS_FIELD';
       field: keyof TechnicalSkills;
       value: string;
+    }
+  | {
+      type: 'ADD_PERSONAL_LINK';
+    }
+  | {
+      type: 'UPDATE_PERSONAL_LINK';
+      index: number;
+      field: keyof Omit<PersonalLink, 'id'>;
+      value: string;
+    }
+  | {
+      type: 'REMOVE_PERSONAL_LINK';
+      index: number;
     }
   | {
       type: 'SET_FONT_FAMILY';
@@ -402,6 +425,44 @@ export function resumeReducer(state: ResumeState, action: ResumeAction): ResumeS
         },
       };
     }
+    case 'ADD_PERSONAL_LINK': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          personalInfo: {
+            ...state.data.personalInfo,
+            otherLinks: [...state.data.personalInfo.otherLinks, createPersonalLink()],
+          },
+        },
+      };
+    }
+    case 'UPDATE_PERSONAL_LINK': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          personalInfo: {
+            ...state.data.personalInfo,
+            otherLinks: state.data.personalInfo.otherLinks.map((link, index) =>
+              index === action.index ? { ...link, [action.field]: action.value } : link,
+            ),
+          },
+        },
+      };
+    }
+    case 'REMOVE_PERSONAL_LINK': {
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          personalInfo: {
+            ...state.data.personalInfo,
+            otherLinks: state.data.personalInfo.otherLinks.filter((_, index) => index !== action.index),
+          },
+        },
+      };
+    }
     case 'SET_FONT_FAMILY': {
       return {
         ...state,
@@ -457,11 +518,23 @@ function normalizeResumeData(rawData: unknown): ResumeData {
     skills?: string[];
   };
 
+  const migratedOtherLinks = Array.isArray(data.personalInfo?.otherLinks)
+    ? data.personalInfo.otherLinks
+        .filter((link): link is PersonalLink => Boolean(link && typeof link === 'object'))
+        .map((link) => ({
+          id: typeof link.id === 'string' && link.id.trim() !== '' ? link.id : crypto.randomUUID(),
+          label: typeof link.label === 'string' ? link.label : '',
+          url: typeof link.url === 'string' ? link.url : '',
+        }))
+    : [];
+
   return {
     personalInfo: {
       ...defaultData.personalInfo,
       ...data.personalInfo,
       github: data.personalInfo?.github ?? '',
+      website: data.personalInfo?.website ?? '',
+      otherLinks: migratedOtherLinks,
     },
     education: Array.isArray(data.education) ? data.education : [],
     experience: Array.isArray(data.experience) ? data.experience : [],

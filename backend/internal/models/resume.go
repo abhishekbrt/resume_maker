@@ -18,14 +18,22 @@ type ResumeData struct {
 
 // PersonalInfo is the header content for the resume.
 type PersonalInfo struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Location  string `json:"location,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Email     string `json:"email,omitempty"`
-	LinkedIn  string `json:"linkedin,omitempty"`
-	GitHub    string `json:"github,omitempty"`
-	Website   string `json:"website,omitempty"`
+	FirstName  string         `json:"firstName"`
+	LastName   string         `json:"lastName"`
+	Location   string         `json:"location,omitempty"`
+	Phone      string         `json:"phone,omitempty"`
+	Email      string         `json:"email,omitempty"`
+	LinkedIn   string         `json:"linkedin,omitempty"`
+	GitHub     string         `json:"github,omitempty"`
+	Website    string         `json:"website,omitempty"`
+	OtherLinks []PersonalLink `json:"otherLinks,omitempty"`
+}
+
+// PersonalLink stores user-provided profile links (e.g., LeetCode, Codeforces).
+type PersonalLink struct {
+	ID    string `json:"id,omitempty"`
+	Label string `json:"label,omitempty"`
+	URL   string `json:"url,omitempty"`
 }
 
 // ExperienceEntry represents a single role in the experience section.
