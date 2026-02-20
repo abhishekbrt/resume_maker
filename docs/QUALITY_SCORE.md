@@ -97,6 +97,21 @@ Before any feature is considered "done":
 - [ ] Multi-page content renders with proper page breaks
 - [ ] Profile photo renders correctly (when present)
 
+### PDF Quality Gate (CI)
+
+PDF-related pull requests must pass the `pdf-quality` workflow.
+
+Scope:
+- `backend/internal/pdfgen/**`
+- `backend/internal/service/**`
+- `backend/internal/handlers/**`
+- `frontend/src/lib/types.ts`
+
+Gate checks:
+- Fixture-driven PDF golden test (`TestPDFGoldenFixtures`)
+- Renderer regression tests (fonts, links, photo)
+- Handler integration tests for PDF generation paths
+
 ### Performance Review
 
 - [ ] No noticeable UI lag during form interaction

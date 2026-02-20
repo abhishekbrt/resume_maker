@@ -64,3 +64,13 @@ Current mode is advisory:
 - warnings do not block merges in phase 1
 
 This can be promoted to blocking once warning volume is low and stable.
+
+## PDF Change Policy
+
+For PRs that touch PDF generation behavior, the `pdf-quality` CI workflow is a required quality gate.
+
+Required checks:
+- fixture-driven golden regression (`backend/internal/pdfgen/testdata`)
+- renderer and handler regression tests
+
+If intentional output changes are made, update golden files explicitly and document why in the PR.
