@@ -198,7 +198,12 @@ function readPersistedState(): ResumeState {
 }
 
 export function ResumeProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(resumeReducer, initialState, readPersistedState);
+  const [state, dispatch] = useReducer(resumeReducer, initialState);
+
+  useEffect(() => {
+    const persistedState = readPersistedState();
+    dispatch({ type: 'LOAD_STATE', value: persistedState });
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));

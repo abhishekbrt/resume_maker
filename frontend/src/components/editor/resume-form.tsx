@@ -23,6 +23,8 @@ export function ResumeForm() {
           <label>
             First Name
             <input
+              name="firstName"
+              autoComplete="given-name"
               value={state.data.personalInfo.firstName}
               onChange={(event) =>
                 dispatch({
@@ -37,6 +39,8 @@ export function ResumeForm() {
           <label>
             Last Name
             <input
+              name="lastName"
+              autoComplete="family-name"
               value={state.data.personalInfo.lastName}
               onChange={(event) =>
                 dispatch({
@@ -51,6 +55,8 @@ export function ResumeForm() {
           <label>
             Email
             <input
+              name="email"
+              autoComplete="email"
               value={state.data.personalInfo.email}
               onChange={(event) =>
                 dispatch({
@@ -65,6 +71,8 @@ export function ResumeForm() {
           <label>
             Phone
             <input
+              name="phone"
+              autoComplete="tel"
               value={state.data.personalInfo.phone}
               onChange={(event) =>
                 dispatch({
@@ -79,6 +87,8 @@ export function ResumeForm() {
           <label>
             Location
             <input
+              name="location"
+              autoComplete="address-level2"
               value={state.data.personalInfo.location}
               onChange={(event) =>
                 dispatch({
@@ -93,6 +103,7 @@ export function ResumeForm() {
           <label>
             LinkedIn
             <input
+              name="linkedin"
               value={state.data.personalInfo.linkedin}
               onChange={(event) =>
                 dispatch({
@@ -112,6 +123,7 @@ export function ResumeForm() {
         <label>
           Professional Summary
           <textarea
+            name="summary"
             rows={5}
             value={state.data.summary}
             onChange={(event) => dispatch({ type: 'UPDATE_SUMMARY', value: event.target.value })}
@@ -124,6 +136,7 @@ export function ResumeForm() {
         <h2>Skills</h2>
         <form className={styles.skillForm} onSubmit={handleSkillSubmit}>
           <input
+            name="newSkill"
             value={skillInput}
             onChange={(event) => setSkillInput(event.target.value)}
             placeholder="Add a skill"
@@ -150,6 +163,7 @@ export function ResumeForm() {
           <label>
             Font Family
             <select
+              name="fontFamily"
               value={state.settings.fontFamily}
               onChange={(event) =>
                 dispatch({
@@ -168,6 +182,7 @@ export function ResumeForm() {
           <label>
             Font Size
             <select
+              name="fontSize"
               value={state.settings.fontSize}
               onChange={(event) =>
                 dispatch({
@@ -185,6 +200,7 @@ export function ResumeForm() {
           <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
+              name="showPhoto"
               checked={state.settings.showPhoto}
               onChange={(event) => dispatch({ type: 'SET_SHOW_PHOTO', value: event.target.checked })}
             />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ResumeForm } from '@/components/editor/resume-form';
 import { ResumePreview } from '@/components/preview/resume-preview';
@@ -13,16 +13,26 @@ function EditorWorkspace() {
   const { state } = useResume();
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorType, setErrorType] = useState<'validation' | 'api' | ''>('');
 
   const validationErrors = useMemo(() => validateForDownload(state.data), [state.data]);
+
+  useEffect(() => {
+    if (errorType === 'validation' && validationErrors.length === 0) {
+      setErrorMessage('');
+      setErrorType('');
+    }
+  }, [errorType, validationErrors]);
 
   const handleDownload = async () => {
     if (validationErrors.length > 0) {
       setErrorMessage(validationErrors[0]);
+      setErrorType('validation');
       return;
     }
 
     setErrorMessage('');
+    setErrorType('');
     setIsGenerating(true);
 
     try {
@@ -44,8 +54,10 @@ function EditorWorkspace() {
     } catch (error) {
       if (error instanceof APIError) {
         setErrorMessage(error.message);
+        setErrorType('api');
       } else {
         setErrorMessage('Unable to generate PDF right now. Please try again.');
+        setErrorType('api');
       }
     } finally {
       setIsGenerating(false);
