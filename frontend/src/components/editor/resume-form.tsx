@@ -548,6 +548,7 @@ export function ResumeForm() {
 
       <section className={styles.section}>
         <h2>Template Settings</h2>
+        <p className={styles.hint}>Font options use embedded open-source equivalents for consistent preview and PDF output.</p>
         <div className={styles.grid}>
           <label>
             Font Family

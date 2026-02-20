@@ -93,6 +93,12 @@
   color: #69838e;
 }
 
+.hint {
+  color: #58717b;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 .checkboxLabel {
   display: flex;
   align-items: center;

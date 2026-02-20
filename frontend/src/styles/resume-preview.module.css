@@ -13,6 +13,22 @@
   padding: 1.7rem;
 }
 
+.fontTimes {
+  font-family: 'Resume Times', 'Times New Roman', Times, serif;
+}
+
+.fontGaramond {
+  font-family: 'Resume Garamond', Garamond, 'Times New Roman', serif;
+}
+
+.fontCalibri {
+  font-family: 'Resume Calibri', Calibri, 'Segoe UI', Arial, sans-serif;
+}
+
+.fontArial {
+  font-family: 'Resume Arial', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+}
+
 .header {
   text-align: center;
   border-bottom: 1px solid #c9d3d8;

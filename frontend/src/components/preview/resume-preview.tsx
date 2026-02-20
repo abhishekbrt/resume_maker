@@ -1,6 +1,7 @@
 'use client';
 
 import { useResume } from '@/lib/resume-context';
+import type { FontFamily } from '@/lib/types';
 import styles from '@/styles/resume-preview.module.css';
 
 function joinDateRange(startDate: string, endDate: string) {
@@ -45,10 +46,25 @@ function renderLink(value: string, displayLabel?: string) {
   );
 }
 
+function mapPreviewFontClass(fontFamily: FontFamily): string {
+  switch (fontFamily) {
+    case 'arial':
+      return styles.fontArial;
+    case 'calibri':
+      return styles.fontCalibri;
+    case 'garamond':
+      return styles.fontGaramond;
+    case 'times':
+    default:
+      return styles.fontTimes;
+  }
+}
+
 export function ResumePreview() {
   const { state } = useResume();
   const { data } = state;
   const { personalInfo } = data;
+  const previewFontClass = mapPreviewFontClass(state.settings.fontFamily);
 
   const fullName = `${personalInfo.firstName} ${personalInfo.lastName}`.trim();
   const headerContacts = [
@@ -69,7 +85,7 @@ export function ResumePreview() {
 
   return (
     <div className={styles.previewRoot}>
-      <article className={styles.paper}>
+      <article className={`${styles.paper} ${previewFontClass}`} data-testid="resume-preview-paper">
         <header className={styles.header}>
           <h1>{fullName || 'Your Name'}</h1>
           <p className={styles.headerContactLine}>
