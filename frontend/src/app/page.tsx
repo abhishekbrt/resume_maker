@@ -1,61 +1,21 @@
-'use client';
+import { HomeContent } from '@/components/home/home-content';
 
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+type SearchParams = Record<string, string | string[] | undefined>;
 
-import { useAuthSession } from '@/hooks/use-auth-session';
-import styles from './page.module.css';
+interface HomePageProps {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}
 
-export default function Home() {
-  const searchParams = useSearchParams();
-  const { status, user, errorMessage, signInWithGoogle, signOut } = useAuthSession();
-  const showAuthRequiredPrompt = searchParams.get('auth') === 'required';
-  const isAuthenticated = status === 'authenticated' && user !== null;
+function getSingleParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+  return value ?? '';
+}
 
-  return (
-    <main className={styles.page}>
-      <section className={styles.hero}>
-        <p className={styles.eyebrow}>Resume Maker</p>
-        <h1>Build Your Professional Resume in Minutes</h1>
-        <p className={styles.subtext}>
-          Create a clean, ATS-friendly resume with live preview and instant PDF generation.
-        </p>
-        {showAuthRequiredPrompt && (
-          <p className={styles.authNotice}>Please sign in with Google to continue to editor.</p>
-        )}
-        {errorMessage !== '' && <p className={styles.authError}>{errorMessage}</p>}
+export default async function Home({ searchParams }: HomePageProps) {
+  const resolvedParams = await Promise.resolve(searchParams ?? {});
+  const showAuthRequiredPrompt = getSingleParam(resolvedParams.auth) === 'required';
 
-        {isAuthenticated ? (
-          <div className={styles.actions}>
-            <Link href="/editor" className={styles.cta}>
-              Go to Editor
-            </Link>
-            <button type="button" className={styles.ctaSecondary} onClick={() => void signOut()}>
-              Logout
-            </button>
-            <p className={styles.authMeta}>Signed in as {user.email}</p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className={styles.cta}
-            disabled={status === 'loading'}
-            onClick={signInWithGoogle}
-          >
-            {status === 'loading' ? 'Checking session...' : 'Sign in with Google'}
-          </button>
-        )}
-      </section>
-
-      <section className={styles.previewCard}>
-        <h2>Classic Template</h2>
-        <p>Single-column layout designed for readability and applicant tracking systems.</p>
-        <ul>
-          <li>Live preview while you type</li>
-          <li>Google OAuth sign-in for saved resumes</li>
-          <li>Backend-generated PDF output</li>
-        </ul>
-      </section>
-    </main>
-  );
+  return <HomeContent showAuthRequiredPrompt={showAuthRequiredPrompt} />;
 }

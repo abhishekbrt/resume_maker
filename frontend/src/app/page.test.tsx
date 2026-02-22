@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import Home from '@/app/page';
+import { HomeContent } from '@/components/home/home-content';
 
 vi.mock('next/link', () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
@@ -11,15 +11,10 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('next/navigation', () => ({
-  useSearchParams: vi.fn(),
-}));
-
 vi.mock('@/hooks/use-auth-session', () => ({
   useAuthSession: vi.fn(),
 }));
 
-import { useSearchParams } from 'next/navigation';
 import { useAuthSession } from '@/hooks/use-auth-session';
 
 describe('Home page auth wiring', () => {
@@ -30,7 +25,6 @@ describe('Home page auth wiring', () => {
 
   it('shows Google sign-in CTA for unauthenticated users', () => {
     const signInWithGoogle = vi.fn();
-    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams());
     vi.mocked(useAuthSession).mockReturnValue({
       status: 'unauthenticated',
       user: null,
@@ -40,7 +34,7 @@ describe('Home page auth wiring', () => {
       signOut: vi.fn(),
     });
 
-    render(<Home />);
+    render(<HomeContent showAuthRequiredPrompt={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
     expect(signInWithGoogle).toHaveBeenCalledOnce();
@@ -48,7 +42,6 @@ describe('Home page auth wiring', () => {
 
   it('shows editor and logout actions for authenticated users', () => {
     const signOut = vi.fn();
-    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams());
     vi.mocked(useAuthSession).mockReturnValue({
       status: 'authenticated',
       user: { id: 'user-1', email: 'ada@example.com' },
@@ -58,7 +51,7 @@ describe('Home page auth wiring', () => {
       signOut,
     });
 
-    render(<Home />);
+    render(<HomeContent showAuthRequiredPrompt={false} />);
 
     expect(screen.getByRole('link', { name: 'Go to Editor' })).toHaveAttribute('href', '/editor');
     fireEvent.click(screen.getByRole('button', { name: 'Logout' }));
@@ -66,7 +59,6 @@ describe('Home page auth wiring', () => {
   });
 
   it('shows auth-required banner when redirected from editor', () => {
-    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams('auth=required'));
     vi.mocked(useAuthSession).mockReturnValue({
       status: 'unauthenticated',
       user: null,
@@ -76,7 +68,7 @@ describe('Home page auth wiring', () => {
       signOut: vi.fn(),
     });
 
-    render(<Home />);
+    render(<HomeContent showAuthRequiredPrompt />);
 
     expect(screen.getByText('Please sign in with Google to continue to editor.')).toBeInTheDocument();
   });

@@ -1,4 +1,5 @@
 import { getAuthenticatedUser } from '@/server/auth-user';
+import { jsonError } from '@/server/json-error';
 import { createSupabaseServerClient } from '@/server/supabase-server';
 
 interface RouteContext {
@@ -9,18 +10,6 @@ interface ResumePatchPayload {
   title?: unknown;
   templateId?: unknown;
   data?: unknown;
-}
-
-function jsonError(status: number, code: string, message: string): Response {
-  return Response.json(
-    {
-      error: {
-        code,
-        message,
-      },
-    },
-    { status },
-  );
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {

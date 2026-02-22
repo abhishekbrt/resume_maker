@@ -1,16 +1,5 @@
 import { proxyPDFRequest } from '@/server/pdf-proxy';
-
-function jsonError(status: number, code: string, message: string): Response {
-  return Response.json(
-    {
-      error: {
-        code,
-        message,
-      },
-    },
-    { status },
-  );
-}
+import { jsonError } from '@/server/json-error';
 
 export async function POST(request: Request): Promise<Response> {
   const contentType = request.headers.get('content-type') ?? '';

@@ -1,17 +1,6 @@
+import { jsonError } from '@/server/json-error';
 import { createSupabaseServerClient } from '@/server/supabase-server';
 import { getCookieValue } from '@/server/http-cookies';
-
-function jsonError(status: number, code: string, message: string): Response {
-  return Response.json(
-    {
-      error: {
-        code,
-        message,
-      },
-    },
-    { status },
-  );
-}
 
 export async function GET(request: Request): Promise<Response> {
   const cookieHeader = request.headers.get('cookie') ?? '';
