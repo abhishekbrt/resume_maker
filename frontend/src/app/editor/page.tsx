@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { ResumeForm } from '@/components/editor/resume-form';
 import { ResumePreview } from '@/components/preview/resume-preview';
+import { useAuthSession } from '@/hooks/use-auth-session';
 import { generatePDF, APIError } from '@/lib/api';
 import { ResumeProvider, useResume } from '@/lib/resume-context';
 import { validateForDownload } from '@/lib/validation';
 import styles from '@/styles/editor-page.module.css';
 
-function EditorWorkspace() {
+interface EditorWorkspaceProps {
+  userEmail: string;
+  onLogout: () => Promise<void>;
+}
+
+function EditorWorkspace({ userEmail, onLogout }: EditorWorkspaceProps) {
   const { state } = useResume();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [errorType, setErrorType] = useState<'validation' | 'api' | ''>('');
 
@@ -75,16 +83,36 @@ function EditorWorkspace() {
     }
   };
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await onLogout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <div>
           <h1>Resume Editor</h1>
           <p>Fill in your details and download an ATS-friendly PDF.</p>
+          <p className={styles.sessionMeta}>Signed in as {userEmail}</p>
         </div>
-        <button type="button" onClick={handleDownload} disabled={isGenerating}>
-          {isGenerating ? 'Generating...' : 'Download PDF'}
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" onClick={handleDownload} disabled={isGenerating || isLoggingOut}>
+            {isGenerating ? 'Generating...' : 'Download PDF'}
+          </button>
+          <button
+            type="button"
+            className={styles.logoutButton}
+            onClick={() => void handleLogout()}
+            disabled={isGenerating || isLoggingOut}
+          >
+            {isLoggingOut ? 'Logging out...' : 'Logout'}
+          </button>
+        </div>
       </header>
 
       {errorMessage !== '' && <p className={styles.error}>{errorMessage}</p>}
@@ -102,9 +130,50 @@ function EditorWorkspace() {
 }
 
 export default function EditorPage() {
+  const router = useRouter();
+  const { status, user, errorMessage, refresh, signOut } = useAuthSession();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/?auth=required');
+    }
+  }, [router, status]);
+
+  if (status === 'loading') {
+    return (
+      <main className={styles.guardShell}>
+        <p>Checking your session...</p>
+      </main>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <main className={styles.guardShell}>
+        <p className={styles.error}>{errorMessage || 'Unable to verify session.'}</p>
+        <button type="button" className={styles.retryButton} onClick={() => void refresh()}>
+          Retry
+        </button>
+      </main>
+    );
+  }
+
+  if (status === 'unauthenticated' || user === null) {
+    return (
+      <main className={styles.guardShell}>
+        <p>Redirecting to sign in...</p>
+      </main>
+    );
+  }
+
+  const handleLogout = async () => {
+    await signOut();
+    router.replace('/');
+  };
+
   return (
     <ResumeProvider>
-      <EditorWorkspace />
+      <EditorWorkspace userEmail={user.email} onLogout={handleLogout} />
     </ResumeProvider>
   );
 }

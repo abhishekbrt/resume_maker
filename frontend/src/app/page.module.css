@@ -41,18 +41,67 @@
 }
 
 .cta {
+  border: 0;
+  cursor: pointer;
   width: fit-content;
   background: #c44536;
   color: #fff;
   padding: 0.85rem 1.2rem;
   border-radius: 0.6rem;
   font-weight: 600;
+  font-size: 1rem;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .cta:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(196, 69, 54, 0.2);
+}
+
+.cta:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.ctaSecondary {
+  border: 1px solid #c44536;
+  background: transparent;
+  color: #c44536;
+  padding: 0.8rem 1.2rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.authMeta {
+  color: #345464;
+  font-size: 0.95rem;
+}
+
+.authNotice {
+  background: #e9f2ff;
+  border: 1px solid #b8d2ff;
+  color: #1d3f73;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  width: fit-content;
+}
+
+.authError {
+  background: #ffe3de;
+  border: 1px solid #ffb4a9;
+  color: #8c1f13;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  width: fit-content;
 }
 
 .previewCard {

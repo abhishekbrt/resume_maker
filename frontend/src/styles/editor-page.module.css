@@ -11,7 +11,7 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   padding: 1rem;
   background: #fff;
@@ -25,6 +25,17 @@
 
 .header p {
   color: #506b77;
+}
+
+.sessionMeta {
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
 }
 
 .header button {
@@ -42,12 +53,36 @@
   cursor: wait;
 }
 
+.logoutButton {
+  background: #143642;
+}
+
 .error {
   color: #8c1f13;
   background: #ffe3de;
   border: 1px solid #ffb4a9;
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
+}
+
+.guardShell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  gap: 0.8rem;
+  text-align: center;
+  padding: 1.25rem;
+}
+
+.retryButton {
+  justify-self: center;
+  border: 1px solid #143642;
+  background: #143642;
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
 }
 
 .content {
