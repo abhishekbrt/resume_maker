@@ -6,31 +6,37 @@
 
 ## Tables
 
-### `users`
+### `auth.users` (managed by Supabase Auth)
 
-| Column          | Type           | Constraints                            | Description            |
-| --------------- | -------------- | -------------------------------------- | ---------------------- |
-| `id`            | `UUID`         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique user identifier |
-| `email`         | `VARCHAR(255)` | UNIQUE, NOT NULL                       | User's email address   |
-| `password_hash` | `VARCHAR(255)` | NOT NULL                               | bcrypt hashed password |
-| `full_name`     | `VARCHAR(255)` |                                        | Display name           |
-| `created_at`    | `TIMESTAMPTZ`  | DEFAULT NOW()                          | Account creation time  |
-| `updated_at`    | `TIMESTAMPTZ`  | DEFAULT NOW()                          | Last update time       |
+Google OAuth identities are stored in Supabase's managed `auth.users` table.
+Application code should treat `auth.users.id` (UUID) as the canonical user ID.
+
+---
+
+### `profiles`
+
+| Column       | Type          | Constraints                                 | Description                     |
+| ------------ | ------------- | ------------------------------------------- | ------------------------------- |
+| `id`         | `UUID`        | PRIMARY KEY, FK → auth.users(id)            | User identifier (same as auth)  |
+| `full_name`  | `TEXT`        |                                             | Display name                    |
+| `avatar_url` | `TEXT`        |                                             | Optional avatar path            |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT NOW()                     | Profile creation time           |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT NOW(), trigger-maintained | Last profile update             |
 
 ---
 
 ### `resumes`
 
-| Column        | Type           | Constraints                            | Description                            |
-| ------------- | -------------- | -------------------------------------- | -------------------------------------- |
-| `id`          | `UUID`         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique resume identifier               |
-| `user_id`     | `UUID`         | FK → users(id), NOT NULL               | Owner of the resume                    |
-| `title`       | `VARCHAR(255)` | NOT NULL, DEFAULT 'Untitled Resume'    | User-given name for this resume        |
-| `template_id` | `VARCHAR(50)`  | NOT NULL, DEFAULT 'classic'            | Which template to render with          |
-| `data`        | `JSONB`        | NOT NULL                               | Full resume content (see schema below) |
-| `photo_url`   | `TEXT`         |                                        | S3 path to profile photo (nullable)    |
-| `created_at`  | `TIMESTAMPTZ`  | DEFAULT NOW()                          | Creation time                          |
-| `updated_at`  | `TIMESTAMPTZ`  | DEFAULT NOW()                          | Last update time                       |
+| Column        | Type           | Constraints                             | Description                                    |
+| ------------- | -------------- | --------------------------------------- | ---------------------------------------------- |
+| `id`          | `UUID`         | PRIMARY KEY, DEFAULT gen_random_uuid()  | Unique resume identifier                       |
+| `user_id`     | `UUID`         | FK → auth.users(id), NOT NULL           | Owner of the resume                            |
+| `title`       | `VARCHAR(255)` | NOT NULL, DEFAULT 'Untitled Resume'     | User-given name for this resume                |
+| `template_id` | `VARCHAR(50)`  | FK → templates(id), NOT NULL            | Which template to render with                  |
+| `data`        | `JSONB`        | NOT NULL                                | Full resume content (see schema below)         |
+| `photo_path`  | `TEXT`         |                                         | Storage object path for profile photo          |
+| `created_at`  | `TIMESTAMPTZ`  | NOT NULL, DEFAULT NOW()                 | Creation time                                  |
+| `updated_at`  | `TIMESTAMPTZ`  | NOT NULL, DEFAULT NOW(), trigger-backed | Last update time (maintained by DB trigger)    |
 
 ---
 
@@ -59,17 +65,24 @@ The `data` column in `resumes` stores structured JSON. Here is the expected shap
     "phone": "string",
     "email": "string",
     "linkedin": "string (URL, optional)",
-    "website": "string (URL, optional)"
+    "github": "string (URL, optional)",
+    "website": "string (URL, optional)",
+    "otherLinks": [
+      {
+        "id": "string (uuid)",
+        "label": "string",
+        "url": "string (URL)"
+      }
+    ]
   },
-  "summary": "string (paragraph, optional)",
   "experience": [
     {
       "id": "string (uuid)",
       "company": "string",
       "location": "string",
       "role": "string",
-      "startDate": "string (YYYY-MM)",
-      "endDate": "string (YYYY-MM or 'Present')",
+      "startDate": "string",
+      "endDate": "string",
       "bullets": ["string"]
     }
   ],
@@ -79,35 +92,26 @@ The `data` column in `resumes` stores structured JSON. Here is the expected shap
       "institution": "string",
       "location": "string",
       "degree": "string",
-      "graduationDate": "string (YYYY-MM)",
+      "startDate": "string",
+      "endDate": "string",
       "bullets": ["string"]
     }
   ],
-  "skills": ["string"],
-  "sections": [
+  "projects": [
     {
       "id": "string (uuid)",
-      "title": "string (e.g., 'Volunteering', 'Projects', 'Certifications')",
-      "items": [
-        {
-          "label": "string",
-          "value": "string"
-        }
-      ]
+      "name": "string",
+      "techStack": "string",
+      "startDate": "string",
+      "endDate": "string",
+      "bullets": ["string"]
     }
   ],
-  "sectionOrder": [
-    "personalInfo",
-    "summary",
-    "experience",
-    "education",
-    "skills",
-    "sections"
-  ],
-  "settings": {
-    "showPhoto": true,
-    "fontSize": "medium",
-    "fontFamily": "times"
+  "technicalSkills": {
+    "languages": "string",
+    "frameworks": "string",
+    "developerTools": "string",
+    "libraries": "string"
   }
 }
 ```
@@ -118,14 +122,14 @@ The `data` column in `resumes` stores structured JSON. Here is the expected shap
 
 ```sql
 CREATE INDEX idx_resumes_user_id ON resumes(user_id);
-CREATE INDEX idx_resumes_updated_at ON resumes(updated_at DESC);
+CREATE INDEX idx_resumes_user_updated_at ON resumes(user_id, updated_at DESC);
 ```
 
 ---
 
 ## Notes
 
-- The `data` JSONB column allows schema flexibility — new fields can be added without migrations
-- The `sectionOrder` array controls the rendering order of sections in the template
-- The `sections` array is a generic container for custom sections (Projects, Volunteering, Certifications, etc.)
-- Photo storage: the actual image is in S3; `photo_url` stores the S3 key for retrieval
+- `auth.users` is the source of truth for identity (Google OAuth via Supabase Auth)
+- `profiles` and `resumes` enforce per-user access with Row Level Security (RLS)
+- The `data` JSONB column keeps resume content flexible while metadata remains relational
+- Profile photos are stored in object storage; `photo_path` stores the object key/path
