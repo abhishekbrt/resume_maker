@@ -1,181 +1,206 @@
 # Architecture
 
-This document describes the current high-level architecture of Resume Maker.
-Use this as the source of truth for runtime boundaries and responsibilities.
+This document describes the high-level architecture of Resume Maker.
+If you want to familiarize yourself with the codebase, start here.
 
-See also `AGENTS.md` for coding conventions and guardrails.
+See also:
 
-> **Phase note:** v1 (local-only editor + direct PDF generation) is complete.
-> The codebase is now in **v2 transition**: authentication and persistence are
-> implemented in the Next.js API layer, while some planned endpoints (photo
-> upload, saved-resume PDF generation) are still pending.
+- `AGENTS.md` for contribution rules and coding conventions
+- `docs/generated/API_SPEC.md` for endpoint contracts
+- `docs/generated/db-schema.md` for Supabase schema details
 
 ## Bird's Eye View
 
-Resume Maker transforms structured resume JSON into an ATS-friendly PDF.
+On the highest level, Resume Maker accepts structured resume JSON and produces an
+ATS-friendly PDF.
 
-The production runtime is split into four systems:
+The runtime is split into four systems:
 
-1. **Browser UI (Next.js frontend)**
-2. **Next.js App Router server/API (BFF)**
-3. **Go PDF microservice**
-4. **Supabase (Auth + Postgres)**
+1. Browser UI (Next.js pages/components)
+2. Next.js server/API layer (BFF)
+3. Supabase (Google OAuth + Postgres + RLS)
+4. Go PDF microservice
 
-Core flow:
+Request flow in production:
 
-- Browser calls Next.js route handlers under `/api/*`
-- Next.js validates session and payloads
-- Next.js reads/writes Supabase data for authenticated resources
-- Next.js forwards PDF generation requests to Go service using HMAC service auth
-- Go returns PDF bytes
+1. Browser calls Next.js routes under `/api/*`
+2. Next.js validates session cookies and user identity with Supabase
+3. Next.js reads/writes resume rows in Supabase
+4. Next.js forwards PDF generation payloads to Go
+5. Go returns PDF bytes
 
-## Codemap
+The browser never calls Supabase directly and never calls Go directly.
 
-### `frontend/`
+## Code Map
 
-The Next.js application (App Router).
+This section answers two questions:
 
-`src/app/` includes both pages and route handlers:
+- where is the thing that does X?
+- what is this module responsible for?
 
-- `page.tsx` — server wrapper for landing page, passes auth prompt state
-- `editor/page.tsx` — guarded editor page (redirects unauthenticated users)
-- `api/auth/google/start/route.ts` — starts Google OAuth via Supabase
-- `api/auth/callback/route.ts` — exchanges code for session, sets cookies
-- `api/auth/session/route.ts` — validates `sb-access-token` and returns user
-- `api/auth/logout/route.ts` — clears auth cookies
+Pay attention to `Architecture Invariant` and `API Boundary` notes.
+
+### `frontend/src/app`
+
+Application routes (UI pages + API handlers).
+
+Key pages:
+
+- `page.tsx` — landing page shell
+- `editor/page.tsx` — editor UI, guarded by session checks
+
+Key API routes:
+
+- `api/auth/google/start/route.ts` — start OAuth flow
+- `api/auth/callback/route.ts` — exchange code, set `sb-*` cookies
+- `api/auth/session/route.ts` — current session lookup
+- `api/auth/logout/route.ts` — clear cookies
 - `api/v1/resumes/route.ts` — list/create resumes
-- `api/v1/resumes/[id]/route.ts` — get/update/delete single resume
-- `api/v1/resumes/generate-pdf/route.ts` — proxy to Go PDF service
+- `api/v1/resumes/[id]/route.ts` — get/patch/delete resume
+- `api/v1/resumes/generate-pdf/route.ts` — PDF proxy endpoint
 
-`src/components/`:
+**Architecture Invariant:** route handlers own HTTP concerns and boundary checks.
+They should delegate shared logic to `frontend/src/server/*` helpers.
 
-- `editor/` — form UI (`ResumeForm`)
-- `preview/` — HTML preview (`ResumePreview`)
-- `home/` — authenticated landing content (`home-content.tsx`)
+**API Boundary:** `/api/auth/*` and `/api/v1/*` are the public backend surface
+for the browser.
 
-`src/lib/`:
+### `frontend/src/server`
 
-- `resume-context.tsx` — editor state (`useReducer` + local persistence)
-- `api.ts` — client API for PDF generation
-- `auth-api.ts` — client API for session/Google sign-in/logout actions
-- `types.ts` — shared frontend types
-- `validation.ts` — client-side validation
+Server-only helper modules used by route handlers.
 
-`src/hooks/`:
-
-- `use-auth-session.ts` — auth session state machine for UI
-
-`src/server/` (Next server utilities):
-
-- `supabase-server.ts` — Supabase client factory from env vars
+- `supabase-server.ts` — creates Supabase client from env
 - `auth-user.ts` — extracts authenticated user from cookie token
-- `pdf-proxy.ts` — forwards requests to Go PDF service
-- `pdf-service-auth.ts` — HMAC service headers
-- `json-error.ts` — standard API error response helper
+- `http-cookies.ts` — cookie parsing helper
+- `pdf-proxy.ts` — forwards PDF requests to Go
+- `pdf-service-auth.ts` — HMAC signature/header generation
+- `json-error.ts` — standard JSON error response helper
 
-### `backend/`
+**Architecture Invariant:** secrets and service credentials are handled only in
+server modules, never in browser bundles.
 
-The Go PDF microservice.
+### `frontend/src/lib`, `frontend/src/hooks`, `frontend/src/components`
 
-- `cmd/server/main.go` — entry point
-- `internal/handlers/router.go` — routes and HTTP error mapping
-- `internal/service/pdf_service.go` — validation + orchestration
-- `internal/pdfgen/renderer.go` — deterministic PDF rendering
-- `internal/models/resume.go` — request/data structs
+Client-side state, API client wrappers, hooks, and UI components.
 
-Implemented Go routes:
+- `resume-context.tsx` — editor state machine (`useReducer`)
+- `types.ts` — shared frontend payload types
+- `validation.ts` — client-side validation for UX feedback
+- `api.ts` — PDF request client
+- `auth-api.ts` — session/auth client wrappers
+- `use-auth-session.ts` — auth session state for UI
 
-- `GET /api/v1/health`
-- `GET /api/v1/templates`
-- `POST /api/v1/resumes/generate-pdf`
+**Architecture Invariant:** client-side validation improves UX only.
+Authoritative validation remains server-side.
 
-### `supabase/`
+### `backend/internal/handlers`
 
-- `migrations/20260223000000_init_resume_maker_v2.sql` — v2 schema + RLS
+HTTP router and response mapping for Go service.
 
-## Invariants
+- `router.go` defines:
+  - `GET /api/v1/health`
+  - `GET /api/v1/templates`
+  - `POST /api/v1/resumes/generate-pdf`
 
-**BFF boundary is mandatory.** Browser code never calls Supabase directly.
-All authenticated data access goes through Next.js route handlers.
+**Architecture Invariant:** Go handler layer does not depend on Supabase, OAuth,
+or browser session semantics.
 
-**Go service is PDF-only.** Go does not own user auth or resume persistence.
-It renders PDF bytes from request payloads.
+### `backend/internal/service`, `backend/internal/pdfgen`, `backend/internal/models`
 
-**PDF determinism.** Same valid payload should generate equivalent PDF output.
+Core PDF domain logic.
 
-**No PII logging.** Avoid logging resume content, tokens, or secret values.
+- `service/pdf_service.go` — request validation and orchestration
+- `pdfgen/renderer.go` — deterministic PDF rendering
+- `models/resume.go` — request/data structures
 
-**SQL ownership.** Schema and RLS live in Supabase migrations.
-Next.js code uses Supabase APIs rather than embedding raw SQL in the app.
+**Architecture Invariant:** PDF generation is pure from the service perspective:
+input payload in, PDF bytes out.
+
+### `supabase/migrations`
+
+Database schema and RLS policies.
+
+- `20260223000000_init_resume_maker_v2.sql` creates `profiles`, `templates`,
+  `resumes`, indexes, and row-level policies.
+
+**Architecture Invariant:** tenant isolation is enforced by RLS and `user_id`
+ownership rules in addition to app-layer checks.
+
+### `docs/`
+
+Project docs and generated contracts.
+
+- `docs/generated/API_SPEC.md` — current endpoint behavior
+- `docs/generated/db-schema.md` — Postgres shape + JSONB contract
+- `docs/SECURITY.md` — security controls and hardening checklist
 
 ## Boundaries
 
-### Browser ↔ Next.js API
+### Browser <-> Next.js API
 
-- Public app endpoints: `/api/auth/*` and `/api/v1/*`
-- Auth state is cookie-based (`sb-access-token`, `sb-refresh-token`)
+- Transport: same-origin HTTP (`/api/*`)
+- Auth: cookie-based (`sb-access-token`, `sb-refresh-token`)
+- Data format: JSON (PDF endpoint returns binary)
 
-### Next.js API ↔ Supabase
+### Next.js API <-> Supabase
 
-- Next validates the token with `supabase.auth.getUser(accessToken)`
-- Resume CRUD uses `resumes` table scoped by `user_id`
-- Supabase RLS enforces tenant isolation
+- Identity verification: `supabase.auth.getUser(accessToken)`
+- Persistence: `public.resumes` scoped by `user_id`
+- Enforcement: Supabase RLS policies
 
-### Next.js API ↔ Go PDF service
+### Next.js API <-> Go PDF Service
 
-- Forward target configured by `GO_PDF_SERVICE_URL`
-- Requests signed with:
+- Target: `GO_PDF_SERVICE_URL`
+- Auth: HMAC headers
   - `X-Service-Id`
   - `X-Service-Timestamp`
   - `X-Service-Nonce`
   - `X-Service-Signature`
 
-### Go PDF service verification
+### Go PDF Service Verification
 
-When `GO_PDF_SERVICE_HMAC_SECRET` is set, Go verifies:
+When `GO_PDF_SERVICE_HMAC_SECRET` is configured, Go verifies:
 
 - allowed service id (`GO_PDF_SERVICE_ALLOWED_ID`, default `nextjs-api`)
-- timestamp freshness (±300s)
-- signature validity (HMAC SHA-256)
+- timestamp freshness (±300 seconds)
+- HMAC signature correctness
 - nonce presence
 
-> Current implementation checks nonce presence but does not persist nonce history,
-> so replay prevention storage is still a follow-up hardening step.
+## Cross-Cutting Concerns
 
-## Authentication Model
+### Authentication
 
-- Provider: **Google OAuth via Supabase Auth**
-- Entry: `GET /api/auth/google/start`
-- Callback: `GET /api/auth/callback?code=...`
-- Session cookies set in callback (`httpOnly`, `sameSite=lax`)
-- UI session check: `GET /api/auth/session`
-- Logout: `POST /api/auth/logout`
+- Provider: Google OAuth via Supabase
+- Session source: httpOnly `sb-*` cookies
+- Protected Next.js routes require a valid Supabase user lookup
 
-No email/password auth routes are currently implemented.
+### Error Handling
 
-## Data Model
+- Route handlers use a shared JSON error envelope (`jsonError`)
+- Go service maps validation vs payload vs internal failures to explicit status codes
 
-Supabase schema (see `docs/generated/db-schema.md`):
+### Validation
 
-- Identity source: `auth.users`
-- App profile: `public.profiles`
-- Resume storage: `public.resumes`
-- Template registry: `public.templates`
+- Client: immediate feedback for form UX
+- Next.js: request shape and auth checks at API boundary
+- Go: authoritative PDF payload validation and photo size/type checks
 
-Resume content remains JSONB in `resumes.data`.
+### Logging and Privacy
 
-## Configuration
+- Do not log resume payload content, auth tokens, or secrets
+- Log operational metadata (request id, status, duration, endpoint)
 
-### Frontend/Next.js env
+### Configuration
 
-- `NEXT_PUBLIC_APP_URL`
+Next.js critical env:
+
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `GO_PDF_SERVICE_URL`
 - `GO_PDF_SERVICE_HMAC_SECRET`
-- `GO_PDF_SERVICE_ID` (default `nextjs-api`)
+- `GO_PDF_SERVICE_ID`
 
-### Go service env
+Go critical env:
 
 - `PORT`
 - `GO_PDF_SERVICE_HMAC_SECRET`
@@ -183,7 +208,12 @@ Resume content remains JSONB in `resumes.data`.
 
 ## Current Gaps (Planned)
 
-- `POST /api/v1/resumes/:id/generate-pdf` not implemented yet
-- `POST /api/v1/resumes/:id/photo` not implemented yet
-- `DELETE /api/v1/resumes/:id/photo` not implemented yet
-- nonce replay-store hardening for service auth not implemented yet
+The following routes are planned but not implemented yet:
+
+- `POST /api/v1/resumes/:id/generate-pdf`
+- `POST /api/v1/resumes/:id/photo`
+- `DELETE /api/v1/resumes/:id/photo`
+
+Security hardening gap:
+
+- nonce replay-store persistence for service auth is not implemented yet
