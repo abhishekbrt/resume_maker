@@ -42,7 +42,7 @@ The live preview in the browser is an approximation. The Go backend generates th
 
 - PostgreSQL, not a trendy new database
 - Go standard library where possible, not frameworks for everything
-- JWT for auth, not complex session systems
+- Google OAuth via Supabase with server-managed session cookies
 - S3 for storage, not custom file servers
 
 ### 4. Fail Loudly, Recover Gracefully

@@ -1,619 +1,492 @@
 # API Specification
 
-> Complete REST API contract between the Next.js frontend and the Go backend.
-> This is the single source of truth for all endpoint behavior, request/response
-> shapes, and error formats.
->
-> **Phase note:** Endpoints marked **[v2]** are not part of the MVP. In v1, all
-> endpoints are public (no authentication required).
+> Current API contract for Resume Maker.
+> This covers both:
+> - Browser-facing Next.js routes (`frontend/src/app/api/*`)
+> - Internal Go PDF service routes (`backend/internal/handlers/router.go`)
+
+---
+
+## Topology
+
+Runtime request flow:
+
+1. Browser calls Next.js API routes on the same origin (`/api/*`)
+2. Next.js validates auth session cookies for protected routes
+3. Next.js reads/writes data in Supabase Postgres
+4. Next.js proxies PDF generation to Go service with HMAC service headers
 
 ---
 
 ## Conventions
 
-### Base URL
+### Base URLs
 
-All endpoints are prefixed with `/api/v1`. In local development the Go server
-runs on `http://localhost:8080`, so the full base URL is
-`http://localhost:8080/api/v1`.
+- **Browser-facing API (Next.js BFF):** same origin as frontend
+  - local: `http://localhost:3000`
+- **Internal PDF service (Go):** not for direct browser use
+  - local: `http://localhost:8080`
 
-### Content Type
+### Content Types
 
-All request and response bodies are JSON (`Content-Type: application/json`)
-unless otherwise noted. The PDF download endpoint returns
-`application/pdf`.
+- JSON APIs: `application/json`
+- PDF responses: `application/pdf`
 
-### Naming
+### Authentication Model
 
-Endpoint paths use lowercase with hyphens for multi-word segments. Resource
-names are plural nouns. Actions that don't map to CRUD use verb sub-paths.
+Auth uses **Supabase Google OAuth** with httpOnly cookies managed by Next.js:
 
-    /api/v1/resumes               — the resumes collection
-    /api/v1/resumes/:id           — a single resume
-    /api/v1/resumes/generate-pdf  — action endpoint (verb)
-    /api/v1/auth/login            — auth action
+- `sb-access-token`
+- `sb-refresh-token`
 
-### Request IDs
+Protected endpoints return `401` when session is missing/invalid.
 
-Every response includes an `X-Request-Id` header set by the server middleware.
-Include this value when reporting errors.
+### Standard Error Shape
 
-### Authentication [v2]
+Next.js route handlers and Go handlers use this envelope:
 
-When authentication is implemented, protected endpoints require a JWT bearer
-token in the `Authorization` header:
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Human-readable message"
+  }
+}
+```
 
-    Authorization: Bearer <access_token>
+Validation errors from the Go PDF service may also include `details`:
 
-Unauthenticated requests to protected endpoints return `401 Unauthorized`.
-In v1, all endpoints are public and no `Authorization` header is needed.
-
----
-
-## Error Response Format
-
-All error responses follow this shape:
-
-    {
-      "error": {
-        "code": "VALIDATION_ERROR",
-        "message": "A human-readable description of what went wrong.",
-        "details": [
-          {
-            "field": "personalInfo.email",
-            "message": "must be a valid email address"
-          }
-        ]
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "details": [
+      {
+        "field": "data.personalInfo.firstName",
+        "message": "must not be empty"
       }
-    }
-
-The `details` array is present only for validation errors. The `code` field is
-a machine-readable error code from the table below.
+    ]
+  }
+}
+```
 
 ### Error Codes
 
-| Code                  | HTTP Status | Meaning                                          |
-| --------------------- | ----------- | ------------------------------------------------ |
-| `VALIDATION_ERROR`    | 400         | Request body failed validation                   |
-| `BAD_REQUEST`         | 400         | Malformed request (bad JSON, wrong content type) |
-| `UNAUTHORIZED`        | 401         | Missing or invalid auth token [v2]               |
-| `FORBIDDEN`           | 403         | Token valid but insufficient permissions [v2]    |
-| `NOT_FOUND`           | 404         | Resource does not exist                          |
-| `PAYLOAD_TOO_LARGE`   | 413         | Request body exceeds size limit                  |
-| `RATE_LIMITED`        | 429         | Too many requests                                |
-| `INTERNAL_ERROR`      | 500         | Unexpected server error                          |
-| `SERVICE_UNAVAILABLE` | 503         | PDF generation queue is full, try again later    |
+| Code                | HTTP Status | Meaning |
+| ------------------- | ----------- | ------- |
+| `BAD_REQUEST`       | 400         | Malformed request or wrong content type |
+| `VALIDATION_ERROR`  | 400         | Input validation failed |
+| `UNAUTHORIZED`      | 401         | Missing/invalid auth session or service auth |
+| `NOT_FOUND`         | 404         | Resource not found for the authenticated user |
+| `PAYLOAD_TOO_LARGE` | 413         | Photo exceeds 5MB limit |
+| `BAD_GATEWAY`       | 502         | Next.js could not reach Go PDF service |
+| `INTERNAL_ERROR`    | 500         | Unexpected server error |
 
 ---
 
-## v1 Endpoints (MVP)
+## Browser-Facing Endpoints (Next.js)
 
-These endpoints ship in Phase 1. No authentication is required.
-
----
-
-### POST /api/v1/resumes/generate-pdf
-
-Generate a PDF from resume data. This is the core endpoint of the entire
-application. The frontend sends the full resume JSON, the server renders it
-using the Go `pdfgen` module, and returns the PDF as a binary stream.
-
-**Request:**
-
-    POST /api/v1/resumes/generate-pdf
-    Content-Type: application/json
-
-    {
-      "data": { ... },
-      "settings": {
-        "showPhoto": false,
-        "fontSize": "medium",
-        "fontFamily": "times"
-      }
-    }
-
-The `data` field contains the full `ResumeData` JSON shape as defined in
-`docs/generated/db-schema.md`. The `settings` object controls template
-rendering options.
-
-When `showPhoto` is `true`, the photo must be included as a base64-encoded
-string in a `photo` field at the top level:
-
-    {
-      "data": { ... },
-      "settings": { "showPhoto": true, ... },
-      "photo": "data:image/jpeg;base64,/9j/4AAQSkZJR..."
-    }
-
-**Response (success):**
-
-    HTTP 200 OK
-    Content-Type: application/pdf
-    Content-Disposition: attachment; filename="FirstName_LastName_Resume.pdf"
-
-    <binary PDF bytes>
-
-The filename is derived from `data.personalInfo.firstName` and
-`data.personalInfo.lastName`. If either is missing, the filename defaults to
-`Resume.pdf`.
-
-**Response (error):**
-
-    HTTP 400 Bad Request  — if data fails validation
-    HTTP 413 Payload Too Large — if photo exceeds 5MB
-    HTTP 503 Service Unavailable — if the PDF generation queue is full
-
-**Validation rules:**
-
-- `data.personalInfo.firstName` is required (non-empty string)
-- `data.personalInfo.lastName` is required (non-empty string)
-- At least one content section must have data (experience, education, or skills)
-- If `photo` is provided, it must be a valid base64-encoded JPEG or PNG, max 5MB decoded
-- `settings.fontFamily` must be one of: `times`, `garamond`, `calibri`, `arial`
-- `settings.fontSize` must be one of: `small`, `medium`, `large`
-- `settings.fontFamily` is rendered with embedded open-source equivalents in preview/PDF:
-  - `times` -> Liberation Serif
-  - `garamond` -> DejaVu Serif
-  - `calibri` -> DejaVu Sans
-  - `arial` -> Liberation Sans
-
-**Rate limit:** 10 requests per minute per IP.
-
-**Timing:** Target response time is under 2 seconds for a typical 1-page resume.
+These endpoints are served by `frontend/src/app/api/*`.
 
 ---
 
-### GET /api/v1/health
+### GET /api/auth/google/start
 
-Basic health check. Used by Docker health checks and load balancers.
-
-**Request:**
-
-    GET /api/v1/health
-
-**Response:**
-
-    HTTP 200 OK
-    Content-Type: application/json
-
-    {
-      "status": "ok",
-      "version": "1.0.0"
-    }
-
----
-
-### GET /api/v1/templates
-
-List available resume templates. In v1, this returns a single template.
-
-**Request:**
-
-    GET /api/v1/templates
-
-**Response:**
-
-    HTTP 200 OK
-    Content-Type: application/json
-
-    {
-      "templates": [
-        {
-          "id": "classic",
-          "name": "Classic",
-          "description": "Clean single-column layout with serif typography. ATS-friendly.",
-          "isDefault": true
-        }
-      ]
-    }
-
----
-
-## v2 Endpoints (Phase 2 — Auth & Persistence)
-
-These endpoints are not part of the MVP. They are documented here for planning
-purposes. All v2 endpoints require a valid JWT access token unless noted.
-
----
-
-### POST /api/v1/auth/signup
-
-Create a new user account.
+Start Google OAuth via Supabase and redirect the browser to Google consent.
 
 **Auth required:** No.
 
-**Request:**
-
-    POST /api/v1/auth/signup
-    Content-Type: application/json
-
-    {
-      "email": "user@example.com",
-      "password": "securepassword123",
-      "fullName": "Jane Doe"
-    }
-
 **Response (success):**
 
-    HTTP 201 Created
-
-    {
-      "user": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "email": "user@example.com",
-        "fullName": "Jane Doe",
-        "createdAt": "2026-02-17T07:00:00Z"
-      },
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "expiresIn": 900
-    }
-
-A refresh token is set as an `httpOnly` cookie named `refresh_token`.
-
-**Validation:**
-
-- `email` must be a valid email address, unique across all users
-- `password` must be at least 8 characters
-- `fullName` is optional
-
-**Rate limit:** 3 requests per minute per IP.
-
----
-
-### POST /api/v1/auth/login
-
-Authenticate an existing user.
-
-**Auth required:** No.
-
-**Request:**
-
-    POST /api/v1/auth/login
-    Content-Type: application/json
-
-    {
-      "email": "user@example.com",
-      "password": "securepassword123"
-    }
-
-**Response (success):**
-
-    HTTP 200 OK
-
-    {
-      "user": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "email": "user@example.com",
-        "fullName": "Jane Doe"
-      },
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "expiresIn": 900
-    }
+- `307 Temporary Redirect` to a Google/Supabase authorization URL.
 
 **Response (error):**
 
-    HTTP 401 Unauthorized — invalid email or password
-
-**Rate limit:** 5 requests per minute per IP.
-
----
-
-### POST /api/v1/auth/refresh
-
-Refresh an expired access token using the refresh token cookie.
-
-**Auth required:** No (uses refresh token cookie).
-
-**Request:**
-
-    POST /api/v1/auth/refresh
-
-    (No body. The httpOnly refresh_token cookie is sent automatically.)
-
-**Response:**
-
-    HTTP 200 OK
-
-    {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "expiresIn": 900
-    }
+```json
+{
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "Failed to start Google OAuth flow"
+  }
+}
+```
 
 ---
 
-### POST /api/v1/auth/logout
+### GET /api/auth/callback?code=...
 
-Invalidate the refresh token.
+OAuth callback endpoint. Exchanges auth code for a Supabase session and sets auth cookies.
 
-**Auth required:** Yes.
+**Auth required:** No.
 
-**Request:**
+**Query params:**
 
-    POST /api/v1/auth/logout
+- `code` (required): OAuth authorization code from Supabase/Google redirect.
+
+**Response (success):**
+
+- `307 Temporary Redirect` to `${NEXT_PUBLIC_APP_URL}/editor` (or current origin fallback).
+- Sets cookies:
+  - `sb-access-token`
+  - `sb-refresh-token`
+
+Cookie options:
+
+- `httpOnly: true`
+- `sameSite: lax`
+- `path: /`
+- `secure: true` only in production
+
+**Response (error):**
+
+- `400 BAD_REQUEST` if `code` is missing
+- `401 UNAUTHORIZED` if token exchange fails
+
+---
+
+### GET /api/auth/session
+
+Return authenticated user from `sb-access-token` cookie.
+
+**Auth required:** Cookie-based auth.
+
+**Response (success):**
+
+```json
+{
+  "user": {
+    "id": "user-uuid",
+    "email": "user@example.com"
+  }
+}
+```
+
+**Response (error):**
+
+- `401 UNAUTHORIZED` when cookie missing or session invalid/expired
+
+---
+
+### POST /api/auth/logout
+
+Clears auth cookies.
+
+**Auth required:** No (safe to call even if not logged in).
 
 **Response:**
 
-    HTTP 204 No Content
-
-The `refresh_token` cookie is cleared.
+- `204 No Content`
+- Clears:
+  - `sb-access-token`
+  - `sb-refresh-token`
 
 ---
 
 ### GET /api/v1/resumes
 
-List all resumes belonging to the authenticated user.
+List resume metadata for current user.
 
 **Auth required:** Yes.
 
-**Request:**
+**Response (success):**
 
-    GET /api/v1/resumes
-
-**Response:**
-
-    HTTP 200 OK
-
+```json
+{
+  "resumes": [
     {
-      "resumes": [
-        {
-          "id": "resume-uuid-1",
-          "title": "Software Engineer Resume",
-          "templateId": "classic",
-          "updatedAt": "2026-02-17T06:30:00Z",
-          "createdAt": "2026-02-15T10:00:00Z"
-        }
-      ]
+      "id": "resume-uuid",
+      "title": "Software Engineer Resume",
+      "templateId": "classic",
+      "createdAt": "2026-02-20T10:00:00Z",
+      "updatedAt": "2026-02-21T11:00:00Z"
     }
+  ]
+}
+```
 
-This endpoint returns metadata only, not the full resume data. Use the
-single-resume endpoint to get the full data.
+**Response (error):**
+
+- `401 UNAUTHORIZED` when user is not authenticated
+- `500 INTERNAL_ERROR` when Supabase query fails
 
 ---
 
 ### POST /api/v1/resumes
 
-Create a new resume.
+Create a resume for current user.
 
 **Auth required:** Yes.
 
-**Request:**
+**Request body:**
 
-    POST /api/v1/resumes
-    Content-Type: application/json
+```json
+{
+  "title": "Software Engineer Resume",
+  "templateId": "classic",
+  "data": { "personalInfo": { "firstName": "Ada", "lastName": "Lovelace" } }
+}
+```
 
-    {
-      "title": "Software Engineer Resume",
-      "templateId": "classic",
-      "data": { ... }
-    }
+**Validation:**
 
-**Response:**
+- `title` must be a non-empty string
+- `templateId` must be a non-empty string
+- `data` must be an object
 
-    HTTP 201 Created
+**Response (success):**
 
-    {
-      "id": "resume-uuid-1",
-      "title": "Software Engineer Resume",
-      "templateId": "classic",
-      "data": { ... },
-      "createdAt": "2026-02-17T07:00:00Z",
-      "updatedAt": "2026-02-17T07:00:00Z"
-    }
+```json
+{
+  "id": "resume-uuid",
+  "title": "Software Engineer Resume",
+  "templateId": "classic",
+  "data": { "...": "..." },
+  "createdAt": "2026-02-20T10:00:00Z",
+  "updatedAt": "2026-02-20T10:00:00Z"
+}
+```
+
+**Response (error):**
+
+- `401 UNAUTHORIZED`
+- `400 VALIDATION_ERROR`
+- `500 INTERNAL_ERROR`
 
 ---
 
 ### GET /api/v1/resumes/:id
 
-Get a single resume with full data.
+Fetch one resume by id for current user.
 
-**Auth required:** Yes. Returns `404` if the resume belongs to another user.
+**Auth required:** Yes.
 
-**Request:**
+**Response (success):**
 
-    GET /api/v1/resumes/resume-uuid-1
+```json
+{
+  "id": "resume-uuid",
+  "title": "Software Engineer Resume",
+  "templateId": "classic",
+  "data": { "...": "..." },
+  "photoPath": "photos/user-uuid/file.png",
+  "createdAt": "2026-02-20T10:00:00Z",
+  "updatedAt": "2026-02-21T11:00:00Z"
+}
+```
 
-**Response:**
+**Response (error):**
 
-    HTTP 200 OK
-
-    {
-      "id": "resume-uuid-1",
-      "title": "Software Engineer Resume",
-      "templateId": "classic",
-      "data": { ... },
-      "photoUrl": "https://storage.example.com/photos/uuid.jpg",
-      "createdAt": "2026-02-15T10:00:00Z",
-      "updatedAt": "2026-02-17T06:30:00Z"
-    }
+- `401 UNAUTHORIZED`
+- `404 NOT_FOUND`
 
 ---
 
 ### PATCH /api/v1/resumes/:id
 
-Update a resume. Supports partial updates — only the fields included in the
-request body are updated.
+Patch mutable fields for one resume.
 
 **Auth required:** Yes.
 
-**Request:**
+**Mutable fields:**
 
-    PATCH /api/v1/resumes/resume-uuid-1
-    Content-Type: application/json
+- `title`
+- `templateId`
+- `data`
 
-    {
-      "title": "Updated Title",
-      "data": { ... }
-    }
+At least one mutable field must be present.
 
-**Response:**
+**Request body example:**
 
-    HTTP 200 OK
+```json
+{
+  "title": "Updated Resume Title",
+  "data": { "...": "..." }
+}
+```
 
-    {
-      "id": "resume-uuid-1",
-      "title": "Updated Title",
-      "templateId": "classic",
-      "data": { ... },
-      "updatedAt": "2026-02-17T07:15:00Z"
-    }
+**Response (success):**
+
+```json
+{
+  "id": "resume-uuid",
+  "title": "Updated Resume Title",
+  "templateId": "classic",
+  "data": { "...": "..." },
+  "createdAt": "2026-02-20T10:00:00Z",
+  "updatedAt": "2026-02-21T11:15:00Z"
+}
+```
+
+**Response (error):**
+
+- `401 UNAUTHORIZED`
+- `400 VALIDATION_ERROR` (no mutable fields provided)
+- `404 NOT_FOUND`
 
 ---
 
 ### DELETE /api/v1/resumes/:id
 
-Delete a resume.
+Delete one resume by id.
 
 **Auth required:** Yes.
 
-**Request:**
-
-    DELETE /api/v1/resumes/resume-uuid-1
-
 **Response:**
 
-    HTTP 204 No Content
+- `204 No Content`
+
+**Response (error):**
+
+- `401 UNAUTHORIZED`
+- `500 INTERNAL_ERROR` if delete query fails
 
 ---
 
-### POST /api/v1/resumes/:id/generate-pdf
+### POST /api/v1/resumes/generate-pdf
 
-Generate a PDF for a saved resume. Uses the stored resume data and photo.
+Proxy endpoint from Next.js to Go PDF service.
 
-**Auth required:** Yes.
+**Auth required:** No at route level (current implementation).
 
-**Request:**
+**Request requirements:**
 
-    POST /api/v1/resumes/resume-uuid-1/generate-pdf
+- `Content-Type` must include `application/json`
+- Body must match `GeneratePDFRequest` shape
 
-    (No body. Uses the resume data stored on the server.)
+**Request body shape:**
 
-**Response:**
+```json
+{
+  "data": { "...ResumeData...": "..." },
+  "settings": {
+    "showPhoto": false,
+    "fontSize": "medium",
+    "fontFamily": "times"
+  },
+  "photo": "data:image/png;base64,..."
+}
+```
 
-    HTTP 200 OK
-    Content-Type: application/pdf
-    Content-Disposition: attachment; filename="Jane_Doe_Resume.pdf"
+**Behavior:**
 
-    <binary PDF bytes>
+- Forwards request to `GO_PDF_SERVICE_URL`
+- Signs request with HMAC headers using `GO_PDF_SERVICE_HMAC_SECRET`
+- Returns upstream status/body
+- Copies upstream `Content-Type` and `Content-Disposition` response headers
+
+**Response (error):**
+
+- `400 BAD_REQUEST` if content type is not JSON
+- `502 BAD_GATEWAY` if Go service is unreachable or secret is missing in Next.js env
 
 ---
 
-### POST /api/v1/resumes/:id/photo
+## Internal Service Endpoints (Go)
 
-Upload a profile photo for a resume.
+These endpoints are served by `backend` and intended for trusted callers (Next.js BFF).
 
-**Auth required:** Yes.
+---
 
-**Request:**
+### GET /api/v1/health
 
-    POST /api/v1/resumes/resume-uuid-1/photo
-    Content-Type: multipart/form-data
-
-    photo: <file upload, JPEG or PNG, max 5MB>
+Health endpoint.
 
 **Response:**
 
-    HTTP 200 OK
+```json
+{
+  "status": "ok",
+  "version": "1.0.0"
+}
+```
 
+---
+
+### GET /api/v1/templates
+
+Returns available PDF templates from Go service.
+
+**Response:**
+
+```json
+{
+  "templates": [
     {
-      "photoUrl": "https://storage.example.com/photos/new-uuid.jpg"
+      "id": "classic",
+      "name": "Classic",
+      "description": "Clean single-column layout with serif typography. ATS-friendly.",
+      "isDefault": true
     }
-
-**Validation:**
-
-- File must be JPEG or PNG (validated by magic bytes, not just extension)
-- Max file size: 5MB
-- Server generates a random UUID filename — user-provided filenames are ignored
+  ]
+}
+```
 
 ---
 
-### DELETE /api/v1/resumes/:id/photo
+### POST /api/v1/resumes/generate-pdf
 
-Remove the profile photo from a resume.
+Generate PDF bytes from resume payload.
 
-**Auth required:** Yes.
+**Request:** same `GeneratePDFRequest` JSON shape as above.
 
-**Request:**
+**Response (success):**
 
-    DELETE /api/v1/resumes/resume-uuid-1/photo
+- `200 OK`
+- `Content-Type: application/pdf`
+- `Content-Disposition: attachment; filename="<derived>.pdf"`
 
-**Response:**
+**Validation highlights (Go service):**
 
-    HTTP 204 No Content
+- `data.personalInfo.firstName` required
+- `data.personalInfo.lastName` required
+- at least one of: `experience`, `education`, `projects`, `technicalSkills`
+- `settings.fontFamily` must be one of: `times`, `garamond`, `calibri`, `arial`
+- `settings.fontSize` must be one of: `small`, `medium`, `large`
+- if `settings.showPhoto=true`, `photo` is required
+- photo must be base64 JPEG/PNG data URL and <= 5MB decoded
 
----
+**Error responses:**
 
-## ResumeData JSON Shape (Quick Reference)
+- `400 BAD_REQUEST` (bad content type or malformed JSON)
+- `400 VALIDATION_ERROR` (field-level validation)
+- `401 UNAUTHORIZED` (service auth failure when enabled)
+- `413 PAYLOAD_TOO_LARGE` (photo > 5MB)
+- `500 INTERNAL_ERROR`
 
-The full schema is documented in `docs/generated/db-schema.md`. This is a
-condensed reference for API consumers:
+### Service-to-service HMAC auth
 
-    {
-      "personalInfo": {
-        "firstName": "string (required)",
-        "lastName": "string (required)",
-        "location": "string",
-        "phone": "string",
-        "email": "string",
-        "linkedin": "string (URL, optional)",
-        "website": "string (URL, optional)"
-      },
-      "summary": "string (optional)",
-      "experience": [
-        {
-          "id": "uuid",
-          "company": "string",
-          "location": "string",
-          "role": "string",
-          "startDate": "YYYY-MM",
-          "endDate": "YYYY-MM or 'Present'",
-          "bullets": ["string"]
-        }
-      ],
-      "education": [
-        {
-          "id": "uuid",
-          "institution": "string",
-          "location": "string",
-          "degree": "string",
-          "graduationDate": "YYYY-MM",
-          "bullets": ["string"]
-        }
-      ],
-      "skills": ["string"],
-      "sections": [
-        {
-          "id": "uuid",
-          "title": "string",
-          "items": [
-            { "label": "string", "value": "string" }
-          ]
-        }
-      ],
-      "sectionOrder": ["personalInfo", "summary", "experience", ...]
-    }
+When `GO_PDF_SERVICE_HMAC_SECRET` is set on Go service, caller must send:
+
+- `X-Service-Id`
+- `X-Service-Timestamp` (unix seconds, ±300s)
+- `X-Service-Nonce` (non-empty)
+- `X-Service-Signature` (`sha256=<hex>`)
+
+Signature canonical string:
+
+```
+<timestamp>\n<METHOD>\n<PATH>\n<SHA256_HEX_OF_RAW_BODY>
+```
+
+Allowed service id defaults to `nextjs-api` or `GO_PDF_SERVICE_ALLOWED_ID` if configured.
 
 ---
 
-## Settings Object Reference
+## Planned (Not Implemented Yet)
 
-| Field        | Type   | Values                                  | Default  |
-| ------------ | ------ | --------------------------------------- | -------- |
-| `showPhoto`  | bool   | `true`, `false`                         | `false`  |
-| `fontSize`   | string | `small`, `medium`, `large`              | `medium` |
-| `fontFamily` | string | `times`, `garamond`, `calibri`, `arial` | `times`  |
+These are tracked in architecture docs but are not currently implemented:
 
-`fontFamily` options are backed by bundled open-source fonts for consistent preview/PDF output.
+- `POST /api/v1/resumes/:id/generate-pdf`
+- `POST /api/v1/resumes/:id/photo`
+- `DELETE /api/v1/resumes/:id/photo`
+- nonce replay-store hardening for service-auth
 
 ---
 
-## Rate Limits Summary
+## ResumeData Reference
 
-| Endpoint Pattern                        | Limit       | Window     | Scope |
-| --------------------------------------- | ----------- | ---------- | ----- |
-| `POST /api/v1/auth/login`               | 5 requests  | per minute | IP    |
-| `POST /api/v1/auth/signup`              | 3 requests  | per minute | IP    |
-| `POST /api/v1/resumes/generate-pdf`     | 10 requests | per minute | IP    |
-| `POST /api/v1/resumes/:id/generate-pdf` | 10 requests | per minute | User  |
-| All other endpoints                     | 60 requests | per minute | User  |
+Canonical data shape is documented in:
 
-In v1, all rate limits are scoped by IP since there are no user accounts.
+- `docs/generated/db-schema.md`
+- frontend TypeScript source: `frontend/src/lib/types.ts`

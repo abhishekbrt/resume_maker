@@ -1,165 +1,142 @@
 # Next.js Reference — For LLMs
 
-> Reference document for AI agents working on the Resume Maker frontend.
+> Compact reference for AI agents working on the Resume Maker frontend.
 
 ---
 
-## Project Setup
+## Stack
 
-- **Framework**: Next.js 14+ with App Router
-- **Language**: TypeScript (strict mode)
-- **Package Manager**: npm
-- **Styling**: Vanilla CSS with CSS Modules
-- **State Management**: React Context + useReducer
+- Next.js 14+ (App Router)
+- TypeScript (strict)
+- CSS Modules
+- React Context + `useReducer` for resume editor state
+- Vitest for unit/route tests
 
 ---
 
-## App Router Conventions
+## Current App Structure
 
-### File Structure
-```
+```text
 src/app/
-├── layout.tsx          # Root layout (html, body, providers)
-├── page.tsx            # Landing page (/)
-├── globals.css         # Global styles
-├── editor/
-│   ├── page.tsx        # Resume editor (/editor)
-│   └── layout.tsx      # Editor-specific layout
-├── login/
-│   └── page.tsx        # Login page
-├── signup/
-│   └── page.tsx        # Signup page
-├── dashboard/
-│   └── page.tsx        # User's saved resumes
-└── api/                # BFF API routes (optional, proxy to Go)
-    └── ...
-```
+├── layout.tsx
+├── page.tsx
+├── globals.css
+├── editor/page.tsx
+└── api/
+    ├── auth/
+    │   ├── google/start/route.ts
+    │   ├── callback/route.ts
+    │   ├── session/route.ts
+    │   └── logout/route.ts
+    └── v1/resumes/
+        ├── route.ts
+        ├── [id]/route.ts
+        └── generate-pdf/route.ts
 
-### Key Conventions
-- `page.tsx` = route page component (server component by default)
-- `layout.tsx` = shared layout (wraps children)
-- `'use client'` directive = marks a client component
-- Server components cannot use hooks, event handlers, or browser APIs
-- Client components are needed for: forms, interactivity, state, effects
-
----
-
-## Component Organization
-
-```
 src/components/
 ├── editor/
-│   ├── ResumeForm.tsx          # Main form container
-│   ├── PersonalInfoSection.tsx # Personal info fields
-│   ├── SummarySection.tsx      # Summary textarea
-│   ├── ExperienceSection.tsx   # Work experience entries
-│   ├── EducationSection.tsx    # Education entries
-│   ├── SkillsSection.tsx       # Skills & other section
-│   ├── SectionAccordion.tsx    # Collapsible section wrapper
-│   └── AddEntryButton.tsx      # "+ Add" button component
 ├── preview/
-│   ├── ResumePreview.tsx       # Live preview container
-│   ├── PreviewHeader.tsx       # Name + contact render
-│   ├── PreviewSection.tsx      # Section render
-│   └── PreviewEntry.tsx        # Entry (job/education) render
-├── common/
-│   ├── Button.tsx
-│   ├── Input.tsx
-│   ├── TextArea.tsx
-│   ├── Select.tsx
-│   └── Toast.tsx
-├── layout/
-│   ├── Navbar.tsx
-│   └── Footer.tsx
-└── photo/
-    ├── PhotoUpload.tsx         # Upload + crop UI
-    └── PhotoPreview.tsx        # Circular preview
+└── home/
+
+src/hooks/
+└── use-auth-session.ts
+
+src/lib/
+├── api.ts
+├── auth-api.ts
+├── resume-context.tsx
+├── types.ts
+└── validation.ts
+
+src/server/
+├── auth-user.ts
+├── http-cookies.ts
+├── json-error.ts
+├── pdf-proxy.ts
+├── pdf-service-auth.ts
+└── supabase-server.ts
 ```
 
 ---
 
-## State Management Pattern
+## Architectural Rules
 
-### Resume Context
+1. Browser never talks directly to Supabase.
+2. Browser calls Next.js BFF routes under `/api/*`.
+3. Protected routes validate `sb-access-token` using Supabase `auth.getUser()`.
+4. PDF generation uses Next.js proxy -> Go service (HMAC signed).
+
+---
+
+## Auth Flow
+
+1. `GET /api/auth/session` checks current auth state
+2. Unauthenticated users start OAuth with `GET /api/auth/google/start`
+3. OAuth callback: `GET /api/auth/callback?code=...`
+4. Callback sets httpOnly cookies:
+   - `sb-access-token`
+   - `sb-refresh-token`
+5. Logout via `POST /api/auth/logout`
+
+---
+
+## Data + PDF Flow
+
+### Resume CRUD
+
+- `GET /api/v1/resumes`
+- `POST /api/v1/resumes`
+- `GET /api/v1/resumes/:id`
+- `PATCH /api/v1/resumes/:id`
+- `DELETE /api/v1/resumes/:id`
+
+### PDF
+
+- Client calls `POST /api/v1/resumes/generate-pdf`
+- Next.js forwards to Go `POST /api/v1/resumes/generate-pdf`
+- Next.js signs request with service HMAC headers
+- Response is PDF bytes (`application/pdf`)
+
+---
+
+## API Client Pattern (Current)
 
 ```typescript
-// lib/resume-context.tsx
-type ResumeState = {
-  personalInfo: PersonalInfo;
-  summary: string;
-  experience: ExperienceEntry[];
-  education: EducationEntry[];
-  skills: string[];
-  customSections: CustomSection[];
-  sectionOrder: string[];
-  settings: ResumeSettings;
-};
+// src/lib/api.ts
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
+const baseURL = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
 
-type ResumeAction =
-  | { type: 'SET_PERSONAL_INFO'; payload: Partial<PersonalInfo> }
-  | { type: 'SET_SUMMARY'; payload: string }
-  | { type: 'ADD_EXPERIENCE'; payload: ExperienceEntry }
-  | { type: 'UPDATE_EXPERIENCE'; payload: { id: string; data: Partial<ExperienceEntry> } }
-  | { type: 'REMOVE_EXPERIENCE'; payload: string }
-  | { type: 'REORDER_SECTIONS'; payload: string[] }
-  // ... etc
+const response = await fetch(`${baseURL}/api/v1/resumes/generate-pdf`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+});
 ```
 
-### Data Flow
-```
-User types in form
-  → dispatch action to reducer
-  → state updates
-  → Preview component re-renders with new data
-  → localStorage auto-saves (debounced)
-```
+Notes:
+
+- No Bearer token header is used in browser fetches.
+- Auth is cookie-based.
 
 ---
 
-## API Client Pattern
+## Environment Variables (Frontend)
 
-```typescript
-// lib/api.ts
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    ...options,
-  });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json();
-}
-```
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `NEXT_PUBLIC_API_URL` | Optional API base override for browser requests | same-origin |
+| `NEXT_PUBLIC_APP_URL` | Public app URL for OAuth redirect construction | request origin |
+| `SUPABASE_URL` | Supabase project URL (server-side use) | none |
+| `SUPABASE_ANON_KEY` | Supabase anon key (server-side use) | none |
+| `GO_PDF_SERVICE_URL` | Go PDF endpoint URL used by proxy | `http://localhost:8080/api/v1/resumes/generate-pdf` |
+| `GO_PDF_SERVICE_HMAC_SECRET` | Shared secret for request signing | none |
+| `GO_PDF_SERVICE_ID` | Service identifier header value | `nextjs-api` |
 
 ---
 
-## Key Patterns
+## Editing Guardrails
 
-### Debounced Preview Updates
-- Form onChange → debounce 300ms → update state → re-render preview
-- Prevents janky updates while typing rapidly
-
-### localStorage Persistence
-- Auto-save resume state to localStorage every 2 seconds
-- On page load, hydrate from localStorage if data exists
-- Clear on explicit "New Resume" action
-
-### PDF Download
-- POST resume data to Go backend
-- Receive PDF as blob
-- Create object URL and trigger download
-- Clean up object URL after download
-
----
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Go backend API URL | `http://localhost:8080` |
-| `NEXT_PUBLIC_APP_NAME` | Application name | `Resume Maker` |
+- Keep types in `src/lib/types.ts`
+- Keep server-only logic in `src/server/*`
+- Reuse `jsonError()` for consistent error payloads
+- Preserve existing API response shapes to avoid frontend regressions

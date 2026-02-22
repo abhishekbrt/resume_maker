@@ -1,10 +1,7 @@
 # SECURITY.md — Security Practices
 
-> Security guidelines and threat mitigations for the Resume Maker application.
->
-> **Phase note:** Sections marked **[v2]** apply only after authentication and
-> database persistence are implemented. In v1 (MVP), no user accounts exist
-> and no PII is stored server-side.
+> Security guidance for the current Resume Maker architecture:
+> Next.js BFF + Supabase Auth/Postgres + Go PDF microservice.
 
 ---
 
@@ -12,153 +9,145 @@
 
 ### Assets to Protect
 
-1. **User credentials** — email, password hashes
-2. **Resume data** — personal information (name, phone, email, work history)
-3. **Uploaded photos** — profile images
-4. **Generated PDFs** — contain all resume data
-5. **Server infrastructure** — prevent unauthorized access
+1. **OAuth session tokens** (`sb-access-token`, `sb-refresh-token`)
+2. **Resume data (PII)** stored in `public.resumes`
+3. **Generated PDFs** containing user profile/work history
+4. **Service auth secret** used between Next.js and Go (`GO_PDF_SERVICE_HMAC_SECRET`)
+5. **Supabase credentials and project data**
 
 ### Potential Attackers
 
-- **Opportunistic**: Automated scanners, bots
-- **Targeted**: Someone trying to access another user's resume data
-- **Internal**: Compromised dependency, supply chain attack
+- Automated bot traffic and scanning
+- Authenticated user attempting tenant breakout (accessing other users' resumes)
+- Actor attempting to call Go PDF service directly
+- Accidental secret leakage through logs or repo
 
 ---
 
-## Authentication Security [v2]
+## Authentication Security
 
-### Password Handling
+### Identity Provider
 
-- Hash with **bcrypt** (cost factor ≥ 12)
-- Never store plaintext passwords
-- Never log passwords or password hashes
-- Enforce minimum password length: 8 characters
-- Rate limit login attempts: max 5 per minute per IP
+- Google OAuth through Supabase Auth
+- Identity source of truth: `auth.users`
+- No email/password auth routes in application code
 
-### JWT Implementation
+### Session Cookies
 
-- **Access token**: Short-lived (15 minutes)
-- **Refresh token**: Longer-lived (7 days), stored in httpOnly cookie
-- Sign with **HS256** using a strong secret (≥32 bytes, from environment variable)
-- Include: `user_id`, `email`, `iat`, `exp`
-- Never include sensitive data in JWT payload
-- Validate on every API request via middleware
+Set by `GET /api/auth/callback`:
 
-### Session Management [v2]
+- `sb-access-token`
+- `sb-refresh-token`
 
-- Invalidate refresh tokens on password change
-- Support explicit logout (delete refresh token)
-- Future: token revocation list for compromised tokens
+Cookie policy:
+
+- `httpOnly: true`
+- `sameSite: lax`
+- `path: /`
+- `secure: true` in production
+
+### Session Validation
+
+Protected Next.js routes call `supabase.auth.getUser(accessToken)`.
+If missing/invalid, route returns `401 UNAUTHORIZED`.
 
 ---
 
-## API Security
+## API Boundary Security
+
+### BFF Boundary
+
+- Browser must call Next.js API routes only
+- Browser should not hold direct DB credentials or run SQL
+- Supabase access for user data happens server-side in Next.js route handlers
 
 ### Input Validation
 
-- Validate all input on the server (never trust client-side validation alone)
-- Sanitize text fields to prevent XSS in generated PDFs
-- Limit request body size: 10MB max (for photo uploads)
-- Validate file types server-side (not just extension — check magic bytes)
+- Validate at client and server layers
+- PDF payload validation is enforced in Go service
+- Photo payload must be JPEG/PNG data URL and <=5MB decoded
 
 ### CORS
 
-- Allow only the frontend origin (`CORS_ALLOWED_ORIGINS` env var)
-- No wildcard (`*`) in production
-- Restrict methods to those actually used: GET, POST, PUT, DELETE, OPTIONS
+Go service currently allows:
 
-### Rate Limiting
+- `http://localhost:3000`
+- `http://127.0.0.1:3000`
 
-| Endpoint                         | Limit       | Window              |
-| -------------------------------- | ----------- | ------------------- |
-| `/api/v1/auth/login`             | 5 requests  | per minute per IP   |
-| `/api/v1/auth/signup`            | 3 requests  | per minute per IP   |
-| `/api/v1/resumes/*/generate-pdf` | 10 requests | per minute per user |
-| All other endpoints              | 60 requests | per minute per user |
+Production deployments should restrict this list to exact frontend origins.
 
-### Headers
+---
 
-Set these security headers via middleware:
+## Service-to-Service Security (Next.js -> Go)
 
-```
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-XSS-Protection: 1; mode=block
-Strict-Transport-Security: max-age=31536000; includeSubDomains (production only)
-Content-Security-Policy: default-src 'self'
-```
+When `GO_PDF_SERVICE_HMAC_SECRET` is configured, Go enforces signed requests.
+
+Required headers:
+
+- `X-Service-Id`
+- `X-Service-Timestamp`
+- `X-Service-Nonce`
+- `X-Service-Signature` (`sha256=<hex>`)
+
+Verification controls:
+
+- service id must match `GO_PDF_SERVICE_ALLOWED_ID` (default `nextjs-api`)
+- timestamp freshness window: +/-300 seconds
+- HMAC signature over method/path/body hash
+- nonce must be present
+
+Current gap:
+
+- nonce replay store is not implemented yet (nonce presence only)
 
 ---
 
 ## Data Security
 
+### Supabase Postgres
+
+- Per-user access control via RLS policies on `profiles` and `resumes`
+- `user_id` ownership checks enforced in policy and in app queries
+- Use HTTPS/TLS for all production DB and API traffic
+
 ### PII Handling
 
-- Resume data is PII — treat it with care
-- Encrypt at rest (PostgreSQL with disk encryption or managed DB encryption)
-- Encrypt in transit (HTTPS everywhere, TLS 1.2+)
-- Never log resume content, personal info, or email addresses
-- Log only: user_id, resume_id, action, timestamp
+- Never log resume content, access/refresh tokens, or secrets
+- Log operational metadata only (request id, endpoint, timing, user id where needed)
 
-### File Upload Security
+### PDF Handling
 
-- Validate MIME type server-side (accept only `image/jpeg`, `image/png`)
-- Check file magic bytes (don't trust Content-Type header alone)
-- Limit file size: 5MB for photos
-- Generate random filenames (UUIDs) — never use user-provided filenames
-- Store in S3 with private ACL — access only via pre-signed URLs
-- Scan for embedded scripts or malicious content (stretch goal)
-
-### Database Security
-
-- Use parameterized queries exclusively — zero tolerance for string concatenation in queries
-- Database user has minimal privileges (no DROP, no schema modification in production)
-- Connection via SSL in production
-- Regular backups with encryption
+- Go service returns PDF bytes directly (no server-side long-term PDF storage by default)
+- If storage is added later, object storage must be private with signed URL access only
 
 ---
 
-## Dependency Security
+## Secrets & Configuration
 
-- Run `npm audit` and `go mod tidy` regularly
-- Keep dependencies updated (quarterly review at minimum)
-- Pin dependency versions (lock files committed)
-- Review changelogs before major version upgrades
-- Use GitHub Dependabot or similar for automated vulnerability alerts
+Sensitive environment variables (must never be hardcoded):
 
----
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `GO_PDF_SERVICE_HMAC_SECRET`
+- `GO_PDF_SERVICE_ALLOWED_ID`
 
-## Environment Variables
+Operational rules:
 
-**Sensitive values that MUST be environment variables (never hardcoded)**:
-
-- `JWT_SECRET` — JWT signing key
-- `DATABASE_URL` — PostgreSQL connection string
-- `S3_ACCESS_KEY`, `S3_SECRET_KEY` — Storage credentials
-- `CORS_ALLOWED_ORIGINS` — Allowed frontend origins
-
-**Rules**:
-
-- Never commit `.env` files (add to `.gitignore`)
-- Provide `.env.example` with placeholder values
-- Use different secrets for development, staging, production
-- Rotate secrets if any are accidentally committed
+- Never commit `.env` files
+- Keep `.env.example` up to date
+- Use distinct secrets per environment
+- Rotate secrets after suspected exposure
 
 ---
 
-## Security Checklist (Pre-Launch)
+## Security Checklist
 
-- [ ] All passwords hashed with bcrypt
-- [ ] JWT implemented with short expiry
-- [ ] CORS restricted to frontend origin
-- [ ] Rate limiting on auth and PDF endpoints
-- [ ] Input validation on all API endpoints
-- [ ] File uploads validated (type, size, content)
-- [ ] Security headers set
-- [ ] HTTPS enforced in production
-- [ ] No secrets in code or logs
-- [ ] Dependency audit passes
-- [ ] SQL injection: parameterized queries verified
-- [ ] XSS: output encoding in PDF generation
-- [ ] `.env.example` provided, `.env` in `.gitignore`
+- [ ] Google OAuth configured with correct redirect URL(s)
+- [ ] `sb-*` cookies are httpOnly and secure in production
+- [ ] All protected resume routes return `401` when unauthenticated
+- [ ] Supabase RLS enabled and tested for tenant isolation
+- [ ] `GO_PDF_SERVICE_HMAC_SECRET` set in both Next.js and Go production environments
+- [ ] `GO_PDF_SERVICE_ALLOWED_ID` set explicitly in production
+- [ ] No secrets or PII in logs
+- [ ] Dependency vulnerability checks run (`npm audit`, `go list -m -u`, scanner of choice)
+- [ ] HTTPS enabled end-to-end in production
