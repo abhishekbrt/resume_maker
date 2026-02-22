@@ -1,6 +1,6 @@
 import type { GeneratePDFRequest } from '@/lib/types';
 
-const defaultApiURL = 'http://localhost:8080';
+const defaultApiURL = '';
 
 interface APIErrorResponse {
   error?: {
@@ -21,7 +21,8 @@ export class APIError extends Error {
 
 export async function generatePDF(request: GeneratePDFRequest): Promise<Blob> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? defaultApiURL;
-  const response = await fetch(`${apiUrl}/api/v1/resumes/generate-pdf`, {
+  const baseURL = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+  const response = await fetch(`${baseURL}/api/v1/resumes/generate-pdf`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

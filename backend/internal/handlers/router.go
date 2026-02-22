@@ -1,11 +1,17 @@
 package handlers
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,8 +79,19 @@ func NewRouter(version string) http.Handler {
 				return
 			}
 
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "BAD_REQUEST", "Failed to read request body", nil)
+				return
+			}
+
+			if err := verifyServiceAuth(r, bodyBytes); err != nil {
+				writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", err.Error(), nil)
+				return
+			}
+
 			var req models.GeneratePDFRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := json.Unmarshal(bodyBytes, &req); err != nil {
 				writeError(w, http.StatusBadRequest, "BAD_REQUEST", "Malformed JSON body", nil)
 				return
 			}
@@ -103,6 +120,66 @@ func NewRouter(version string) http.Handler {
 	})
 
 	return r
+}
+
+func verifyServiceAuth(r *http.Request, body []byte) error {
+	secret := strings.TrimSpace(os.Getenv("GO_PDF_SERVICE_HMAC_SECRET"))
+	if secret == "" {
+		return nil
+	}
+
+	serviceID := strings.TrimSpace(r.Header.Get("X-Service-Id"))
+	if serviceID == "" {
+		return errors.New("missing X-Service-Id")
+	}
+
+	allowedID := strings.TrimSpace(os.Getenv("GO_PDF_SERVICE_ALLOWED_ID"))
+	if allowedID == "" {
+		allowedID = "nextjs-api"
+	}
+	if serviceID != allowedID {
+		return errors.New("invalid service id")
+	}
+
+	timestampRaw := strings.TrimSpace(r.Header.Get("X-Service-Timestamp"))
+	if timestampRaw == "" {
+		return errors.New("missing X-Service-Timestamp")
+	}
+	timestamp, err := strconv.ParseInt(timestampRaw, 10, 64)
+	if err != nil {
+		return errors.New("invalid X-Service-Timestamp")
+	}
+
+	now := time.Now().Unix()
+	if timestamp > now+300 || timestamp < now-300 {
+		return errors.New("request timestamp expired")
+	}
+
+	nonce := strings.TrimSpace(r.Header.Get("X-Service-Nonce"))
+	if nonce == "" {
+		return errors.New("missing X-Service-Nonce")
+	}
+
+	signatureRaw := strings.TrimSpace(r.Header.Get("X-Service-Signature"))
+	if !strings.HasPrefix(signatureRaw, "sha256=") {
+		return errors.New("invalid X-Service-Signature")
+	}
+	signature := strings.TrimPrefix(signatureRaw, "sha256=")
+	if signature == "" {
+		return errors.New("invalid X-Service-Signature")
+	}
+
+	bodyHash := sha256.Sum256(body)
+	canonical := fmt.Sprintf("%d\n%s\n%s\n%x", timestamp, r.Method, r.URL.Path, bodyHash)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(canonical))
+	expected := fmt.Sprintf("%x", mac.Sum(nil))
+
+	if subtle.ConstantTimeCompare([]byte(signature), []byte(expected)) != 1 {
+		return errors.New("signature verification failed")
+	}
+
+	return nil
 }
 
 func buildFilename(req models.GeneratePDFRequest) string {

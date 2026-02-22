@@ -2,11 +2,16 @@ package handlers_test
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"resume_maker/backend/internal/handlers"
 )
@@ -355,4 +360,82 @@ func TestCORSPreflightAllowsEditorOrigin(t *testing.T) {
 	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
 		t.Fatalf("expected allowed origin header, got %q", got)
 	}
+}
+
+func TestGeneratePDFRejectsUnsignedWhenServiceSecretConfigured(t *testing.T) {
+	t.Setenv("GO_PDF_SERVICE_HMAC_SECRET", "test-secret")
+
+	router := handlers.NewRouter("1.0.0")
+	bodyBytes := mustMarshalPDFPayload(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resumes/generate-pdf", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if body := rr.Body.String(); !strings.Contains(body, "UNAUTHORIZED") {
+		t.Fatalf("expected UNAUTHORIZED code, got %s", body)
+	}
+}
+
+func TestGeneratePDFAcceptsValidServiceSignature(t *testing.T) {
+	secret := "test-secret"
+	t.Setenv("GO_PDF_SERVICE_HMAC_SECRET", secret)
+	t.Setenv("GO_PDF_SERVICE_ALLOWED_ID", "nextjs-api")
+
+	router := handlers.NewRouter("1.0.0")
+	bodyBytes := mustMarshalPDFPayload(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/resumes/generate-pdf", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	path := "/api/v1/resumes/generate-pdf"
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	bodyHash := sha256.Sum256(bodyBytes)
+	canonical := fmt.Sprintf("%s\n%s\n%s\n%s", timestamp, http.MethodPost, path, hex.EncodeToString(bodyHash[:]))
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(canonical))
+	signature := hex.EncodeToString(mac.Sum(nil))
+
+	req.Header.Set("X-Service-Id", "nextjs-api")
+	req.Header.Set("X-Service-Timestamp", timestamp)
+	req.Header.Set("X-Service-Nonce", "nonce-1")
+	req.Header.Set("X-Service-Signature", "sha256="+signature)
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d, body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func mustMarshalPDFPayload(t *testing.T) []byte {
+	t.Helper()
+
+	payload := map[string]any{
+		"data": map[string]any{
+			"personalInfo": map[string]any{
+				"firstName": "Ada",
+				"lastName":  "Lovelace",
+			},
+			"technicalSkills": map[string]any{
+				"languages": "Go",
+			},
+		},
+		"settings": map[string]any{
+			"showPhoto":  false,
+			"fontSize":   "medium",
+			"fontFamily": "times",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	return bodyBytes
 }
