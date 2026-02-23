@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 
 import { jsonError } from '@/server/json-error';
-import { createSupabaseServerClient } from '@/server/supabase-server';
+import { createSupabaseOAuthClient } from '@/server/supabase-oauth';
 
 export async function GET(request: Request): Promise<Response> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseOAuthClient();
   const requestURL = new URL(request.url);
-  const appURL = process.env.NEXT_PUBLIC_APP_URL?.trim() || requestURL.origin;
-  const redirectTo = `${appURL}/api/auth/callback`;
+  const redirectTo = `${requestURL.origin}/api/auth/callback`;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
