@@ -14,6 +14,7 @@ import type {
 } from '@/lib/types';
 
 const STORAGE_KEY_PREFIX = 'resume-maker-v1';
+const LOCAL_STORAGE_DEBOUNCE_MS = 1500;
 
 export interface ResumeState {
   data: ResumeData;
@@ -632,7 +633,14 @@ export function ResumeProvider({ children, userId }: ResumeProviderProps) {
     if (typeof window === 'undefined') {
       return;
     }
-    window.localStorage.setItem(storageKey, JSON.stringify(state));
+
+    const timeoutID = window.setTimeout(() => {
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+    }, LOCAL_STORAGE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutID);
+    };
   }, [state, storageKey]);
 
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);

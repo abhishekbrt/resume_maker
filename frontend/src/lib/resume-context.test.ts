@@ -1,14 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { createElement, useEffect } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createEmptyResumeData,
+  getResumeStorageKey,
+  ResumeProvider,
   resumeReducer,
+  useResume,
   type ResumeAction,
   type ResumeState,
 } from '@/lib/resume-context';
 
 function reduce(state: ResumeState, action: ResumeAction): ResumeState {
   return resumeReducer(state, action);
+}
+
+function UpdateFirstNameOnMount() {
+  const { dispatch } = useResume();
+
+  useEffect(() => {
+    dispatch({
+      type: 'UPDATE_PERSONAL_INFO',
+      field: 'firstName',
+      value: 'Ada',
+    });
+  }, [dispatch]);
+
+  return null;
 }
 
 describe('resumeReducer', () => {
@@ -131,5 +150,31 @@ describe('resumeReducer', () => {
 
     const cleared = reduce(withPhoto, { type: 'CLEAR_PHOTO' });
     expect(cleared.photo).toBe('');
+  });
+});
+
+describe('ResumeProvider persistence', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    window.localStorage.clear();
+  });
+
+  it('debounces localStorage writes by 1.5 seconds', () => {
+    vi.useFakeTimers();
+    const storageKey = getResumeStorageKey('user-1');
+
+    render(createElement(ResumeProvider, { userId: 'user-1' }, createElement(UpdateFirstNameOnMount)));
+
+    expect(window.localStorage.getItem(storageKey)).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1499);
+    });
+    expect(window.localStorage.getItem(storageKey)).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(window.localStorage.getItem(storageKey)).toContain('"firstName":"Ada"');
   });
 });
