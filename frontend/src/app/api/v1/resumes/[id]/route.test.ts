@@ -69,6 +69,7 @@ describe('routes /api/v1/resumes/:id', () => {
     expect(response.status).toBe(200);
     expect(body.id).toBe('resume-1');
     expect(body.templateId).toBe('classic');
+    expect(createSupabaseServerClient).toHaveBeenCalledWith('test-token');
   });
 
   it('rejects patch payload with no mutable fields', async () => {
@@ -119,5 +120,80 @@ describe('routes /api/v1/resumes/:id', () => {
     );
 
     expect(response.status).toBe(204);
+  });
+
+  it('returns 403 when delete is blocked by RLS', async () => {
+    const authClient = createAuthClient();
+    const eqUser = vi.fn(async () => ({
+      error: {
+        code: '42501',
+        message: 'permission denied for table resumes',
+        details: null,
+        hint: null,
+      },
+    }));
+    const eqID = vi.fn(() => ({ eq: eqUser }));
+    const del = vi.fn(() => ({ eq: eqID }));
+    const from = vi.fn(() => ({ delete: del }));
+
+    vi.mocked(createSupabaseServerClient).mockReturnValue({
+      ...authClient,
+      from,
+    } as unknown as ReturnType<typeof createSupabaseServerClient>);
+
+    const response = await DELETE(
+      new Request('http://localhost:3000/api/v1/resumes/resume-1', {
+        method: 'DELETE',
+        headers: {
+          Cookie: 'sb-access-token=test-token',
+        },
+      }),
+      { params: Promise.resolve({ id: 'resume-1' }) },
+    );
+    const body = (await response.json()) as { error?: { code?: string } };
+
+    expect(response.status).toBe(403);
+    expect(body.error?.code).toBe('FORBIDDEN');
+  });
+
+  it('returns 403 when patch is blocked by RLS', async () => {
+    const authClient = createAuthClient();
+    const single = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'new row violates row-level security policy for table "resumes"',
+        details: null,
+        hint: null,
+      },
+    }));
+    const select = vi.fn(() => ({ single }));
+    const eqUser = vi.fn(() => ({ select }));
+    const eqID = vi.fn(() => ({ eq: eqUser }));
+    const update = vi.fn(() => ({ eq: eqID }));
+    const from = vi.fn(() => ({ update }));
+
+    vi.mocked(createSupabaseServerClient).mockReturnValue({
+      ...authClient,
+      from,
+    } as unknown as ReturnType<typeof createSupabaseServerClient>);
+
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/v1/resumes/resume-1', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'sb-access-token=test-token',
+        },
+        body: JSON.stringify({
+          title: 'Updated Title',
+        }),
+      }),
+      { params: Promise.resolve({ id: 'resume-1' }) },
+    );
+    const body = (await response.json()) as { error?: { code?: string } };
+
+    expect(response.status).toBe(403);
+    expect(body.error?.code).toBe('FORBIDDEN');
   });
 });

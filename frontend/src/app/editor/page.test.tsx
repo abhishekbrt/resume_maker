@@ -11,6 +11,10 @@ vi.mock('@/hooks/use-auth-session', () => ({
   useAuthSession: vi.fn(),
 }));
 
+vi.mock('@/hooks/use-resume-sync', () => ({
+  useResumeSync: vi.fn(),
+}));
+
 vi.mock('@/components/editor/resume-form', () => ({
   ResumeForm: () => <div>Resume form</div>,
 }));

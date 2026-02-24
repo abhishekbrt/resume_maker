@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 
 import type {
   EducationEntry,
@@ -21,7 +13,7 @@ import type {
   TechnicalSkills,
 } from '@/lib/types';
 
-const STORAGE_KEY = 'resume-maker-v1';
+const STORAGE_KEY_PREFIX = 'resume-maker-v1';
 
 export interface ResumeState {
   data: ResumeData;
@@ -573,16 +565,7 @@ function normalizeResumeData(rawData: unknown): ResumeData {
   };
 }
 
-function readPersistedState(): ResumeState {
-  if (typeof window === 'undefined') {
-    return initialState;
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return initialState;
-  }
-
+function parsePersistedState(raw: string): ResumeState | null {
   try {
     const parsed = JSON.parse(raw) as Partial<ResumeState>;
     return {
@@ -594,21 +577,63 @@ function readPersistedState(): ResumeState {
       photo: typeof parsed.photo === 'string' ? parsed.photo : '',
     };
   } catch {
-    return initialState;
+    return null;
   }
 }
 
-export function ResumeProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(resumeReducer, initialState);
+export function getResumeStorageKey(userId?: string): string {
+  if (!userId) {
+    return STORAGE_KEY_PREFIX;
+  }
+  return `${STORAGE_KEY_PREFIX}:${userId}`;
+}
+
+export function readPersistedStateByKey(storageKey: string): ResumeState | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(storageKey);
+  if (!raw) {
+    return null;
+  }
+
+  return parsePersistedState(raw);
+}
+
+export function readPersistedStateForUser(userId?: string): ResumeState | null {
+  if (!userId) {
+    return readPersistedStateByKey(STORAGE_KEY_PREFIX);
+  }
+
+  const scopedState = readPersistedStateByKey(getResumeStorageKey(userId));
+  if (scopedState) {
+    return scopedState;
+  }
+
+  return readPersistedStateByKey(STORAGE_KEY_PREFIX);
+}
+
+interface ResumeProviderProps {
+  children: ReactNode;
+  userId?: string;
+}
+
+function initializeState(userId: string | undefined): ResumeState {
+  const persistedState = readPersistedStateForUser(userId);
+  return persistedState ?? initialState;
+}
+
+export function ResumeProvider({ children, userId }: ResumeProviderProps) {
+  const storageKey = useMemo(() => getResumeStorageKey(userId), [userId]);
+  const [state, dispatch] = useReducer(resumeReducer, userId, initializeState);
 
   useEffect(() => {
-    const persistedState = readPersistedState();
-    dispatch({ type: 'LOAD_STATE', value: persistedState });
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
+  }, [state, storageKey]);
 
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
 

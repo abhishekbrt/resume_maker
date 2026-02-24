@@ -75,6 +75,40 @@ describe('routes /api/v1/resumes', () => {
       createdAt: '2026-02-20T10:00:00Z',
       updatedAt: '2026-02-21T11:00:00Z',
     });
+    expect(createSupabaseServerClient).toHaveBeenCalledWith('test-token');
+  });
+
+  it('returns 403 when resume list is blocked by RLS', async () => {
+    const authClient = createAuthClient();
+    const order = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'permission denied for table resumes',
+        details: null,
+        hint: null,
+      },
+    }));
+    const eqUser = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq: eqUser }));
+    const from = vi.fn(() => ({ select }));
+
+    vi.mocked(createSupabaseServerClient).mockReturnValue({
+      ...authClient,
+      from,
+    } as unknown as ReturnType<typeof createSupabaseServerClient>);
+
+    const response = await GET(
+      new Request('http://localhost:3000/api/v1/resumes', {
+        headers: {
+          Cookie: 'sb-access-token=test-token',
+        },
+      }),
+    );
+    const body = (await response.json()) as { error?: { code?: string } };
+
+    expect(response.status).toBe(403);
+    expect(body.error?.code).toBe('FORBIDDEN');
   });
 
   it('creates a resume for authenticated user', async () => {
@@ -123,5 +157,46 @@ describe('routes /api/v1/resumes', () => {
     expect(body.id).toBe('resume-1');
     expect(body.title).toBe('New Resume');
     expect(body.templateId).toBe('classic');
+    expect(createSupabaseServerClient).toHaveBeenCalledWith('test-token');
+  });
+
+  it('returns 403 when resume insert is blocked by RLS', async () => {
+    const authClient = createAuthClient();
+    const single = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: '42501',
+        message: 'new row violates row-level security policy for table "resumes"',
+        details: null,
+        hint: null,
+      },
+    }));
+    const select = vi.fn(() => ({ single }));
+    const insert = vi.fn(() => ({ select }));
+    const from = vi.fn(() => ({ insert }));
+
+    vi.mocked(createSupabaseServerClient).mockReturnValue({
+      ...authClient,
+      from,
+    } as unknown as ReturnType<typeof createSupabaseServerClient>);
+
+    const response = await POST(
+      new Request('http://localhost:3000/api/v1/resumes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'sb-access-token=test-token',
+        },
+        body: JSON.stringify({
+          title: 'New Resume',
+          templateId: 'classic',
+          data: { personalInfo: { firstName: 'Ada' } },
+        }),
+      }),
+    );
+    const body = (await response.json()) as { error?: { code?: string } };
+
+    expect(response.status).toBe(403);
+    expect(body.error?.code).toBe('FORBIDDEN');
   });
 });

@@ -8,11 +8,20 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export function createSupabaseServerClient(): SupabaseClient {
+export function createSupabaseServerClient(accessToken?: string): SupabaseClient {
   return createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_ANON_KEY'), {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
+    ...(accessToken
+      ? {
+          global: {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        }
+      : {}),
   });
 }

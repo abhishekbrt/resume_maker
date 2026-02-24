@@ -6,17 +6,20 @@ import { useRouter } from 'next/navigation';
 import { ResumeForm } from '@/components/editor/resume-form';
 import { ResumePreview } from '@/components/preview/resume-preview';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { useResumeSync } from '@/hooks/use-resume-sync';
 import { generatePDF, APIError } from '@/lib/api';
 import { ResumeProvider, useResume } from '@/lib/resume-context';
 import { validateForDownload } from '@/lib/validation';
 import styles from '@/styles/editor-page.module.css';
 
 interface EditorWorkspaceProps {
+  userId: string;
   userEmail: string;
   onLogout: () => Promise<void>;
 }
 
-function EditorWorkspace({ userEmail, onLogout }: EditorWorkspaceProps) {
+function EditorWorkspace({ userId, userEmail, onLogout }: EditorWorkspaceProps) {
+  useResumeSync(userId);
   const { state } = useResume();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -172,8 +175,8 @@ export default function EditorPage() {
   };
 
   return (
-    <ResumeProvider>
-      <EditorWorkspace userEmail={user.email} onLogout={handleLogout} />
+    <ResumeProvider key={user.id} userId={user.id}>
+      <EditorWorkspace userId={user.id} userEmail={user.email} onLogout={handleLogout} />
     </ResumeProvider>
   );
 }

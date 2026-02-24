@@ -82,7 +82,9 @@ Google OAuth runs through:
 - `GET /api/auth/google/start`
 - `GET /api/auth/callback`
 
-The callback stores session cookies (`sb-access-token`, `sb-refresh-token`) as `httpOnly` cookies.
+`/api/auth/google/start` initiates OAuth using PKCE and stores a short-lived code verifier cookie.
+
+`/api/auth/callback` exchanges the returned `code` for a session and stores session cookies (`sb-access-token`, `sb-refresh-token`) as `httpOnly` cookies.
 
 ### 3. Resume State Management
 

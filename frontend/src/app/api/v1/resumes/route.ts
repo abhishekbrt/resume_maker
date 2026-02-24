@@ -1,6 +1,7 @@
-import { getAuthenticatedUser } from '@/server/auth-user';
+import { getAuthenticatedRequestContext } from '@/server/auth-user';
 import { jsonError } from '@/server/json-error';
-import { createSupabaseServerClient } from '@/server/supabase-server';
+
+const isDev = process.env.NODE_ENV === 'development';
 
 interface ResumePayload {
   title?: unknown;
@@ -24,13 +25,24 @@ function mapResumeMetadata(row: {
   };
 }
 
+function logDevError(operation: string, error: unknown): void {
+  if (!isDev) {
+    return;
+  }
+  console.error(`[api/v1/resumes] ${operation} failed`, error);
+}
+
+function isRLSForbidden(error: { code?: string } | null | undefined): boolean {
+  return error?.code === '42501';
+}
+
 export async function GET(request: Request): Promise<Response> {
-  const user = await getAuthenticatedUser(request);
-  if (!user) {
+  const authContext = await getAuthenticatedRequestContext(request);
+  if (!authContext) {
     return jsonError(401, 'UNAUTHORIZED', 'Authentication required');
   }
+  const { user, supabase } = authContext;
 
-  const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('resumes')
     .select('id,title,template_id,created_at,updated_at')
@@ -38,6 +50,15 @@ export async function GET(request: Request): Promise<Response> {
     .order('updated_at', { ascending: false });
 
   if (error) {
+    logDevError('list resumes', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    if (isRLSForbidden(error)) {
+      return jsonError(403, 'FORBIDDEN', 'You do not have access to this resource');
+    }
     return jsonError(500, 'INTERNAL_ERROR', 'Failed to list resumes');
   }
 
@@ -50,12 +71,20 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const user = await getAuthenticatedUser(request);
-  if (!user) {
+  const authContext = await getAuthenticatedRequestContext(request);
+  if (!authContext) {
     return jsonError(401, 'UNAUTHORIZED', 'Authentication required');
   }
+  const { user, supabase } = authContext;
 
-  const payload = (await request.json()) as ResumePayload;
+  let payload: ResumePayload;
+  try {
+    payload = (await request.json()) as ResumePayload;
+  } catch (error) {
+    logDevError('parse create resume payload', error);
+    return jsonError(400, 'VALIDATION_ERROR', 'Request body must be valid JSON');
+  }
+
   const title = typeof payload.title === 'string' ? payload.title.trim() : '';
   const templateID = typeof payload.templateId === 'string' ? payload.templateId.trim() : '';
   const resumeData = payload.data;
@@ -64,7 +93,6 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(400, 'VALIDATION_ERROR', 'title, templateId, and data are required');
   }
 
-  const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('resumes')
     .insert({
@@ -77,6 +105,19 @@ export async function POST(request: Request): Promise<Response> {
     .single();
 
   if (error || !data) {
+    if (error) {
+      logDevError('create resume', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+    } else {
+      logDevError('create resume', { message: 'Supabase returned empty data after insert' });
+    }
+    if (isRLSForbidden(error)) {
+      return jsonError(403, 'FORBIDDEN', 'You do not have access to this resource');
+    }
     return jsonError(500, 'INTERNAL_ERROR', 'Failed to create resume');
   }
 

@@ -93,7 +93,7 @@ These endpoints are served by `frontend/src/app/api/*`.
 
 ### GET /api/auth/google/start
 
-Start Google OAuth via Supabase and redirect the browser to Google consent.
+Start Google OAuth via Supabase PKCE flow and redirect the browser to Google consent.
 
 **Auth required:** No.
 
@@ -116,7 +116,7 @@ Start Google OAuth via Supabase and redirect the browser to Google consent.
 
 ### GET /api/auth/callback?code=...
 
-OAuth callback endpoint. Exchanges auth code for a Supabase session and sets auth cookies.
+OAuth callback endpoint. Exchanges PKCE auth code for a Supabase session and sets auth cookies.
 
 **Auth required:** No.
 
@@ -141,6 +141,7 @@ Cookie options:
 **Response (error):**
 
 - `400 BAD_REQUEST` if `code` is missing
+- `401 UNAUTHORIZED` if OAuth provider reports an error (`error` query param)
 - `401 UNAUTHORIZED` if token exchange fails
 
 ---

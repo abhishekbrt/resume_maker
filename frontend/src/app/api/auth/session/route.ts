@@ -1,16 +1,15 @@
+import { getAccessTokenFromRequest } from '@/server/auth-user';
 import { jsonError } from '@/server/json-error';
 import { createSupabaseServerClient } from '@/server/supabase-server';
-import { getCookieValue } from '@/server/http-cookies';
 
 export async function GET(request: Request): Promise<Response> {
-  const cookieHeader = request.headers.get('cookie') ?? '';
-  const accessToken = getCookieValue(cookieHeader, 'sb-access-token');
+  const accessToken = getAccessTokenFromRequest(request);
 
   if (!accessToken) {
     return jsonError(401, 'UNAUTHORIZED', 'Authentication required');
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = createSupabaseServerClient(accessToken);
   const { data, error } = await supabase.auth.getUser(accessToken);
   if (error || !data.user) {
     return jsonError(401, 'UNAUTHORIZED', 'Invalid or expired session');
