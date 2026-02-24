@@ -58,7 +58,7 @@ function hasText(value: string): boolean {
   return value.trim() !== '';
 }
 
-function isEntryEmpty(entry: Record<string, unknown>): boolean {
+function isEntryEmpty(entry: object): boolean {
   return !Object.values(entry).some((value) => {
     if (typeof value === 'string') {
       return hasText(value);
