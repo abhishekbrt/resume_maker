@@ -215,7 +215,7 @@ List resume metadata for current user.
 
 ### POST /api/v1/resumes
 
-Create a resume for current user.
+Create or update the single resume for current user.
 
 **Auth required:** Yes.
 
@@ -247,6 +247,9 @@ Create a resume for current user.
   "updatedAt": "2026-02-20T10:00:00Z"
 }
 ```
+
+- `201 Created` when no resume existed and a new row is created
+- `200 OK` when an existing resume is updated in place
 
 **Response (error):**
 

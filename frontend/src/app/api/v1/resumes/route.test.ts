@@ -113,6 +113,14 @@ describe('routes /api/v1/resumes', () => {
 
   it('creates a resume for authenticated user', async () => {
     const authClient = createAuthClient();
+    const limit = vi.fn(async () => ({
+      data: [],
+      error: null,
+    }));
+    const order = vi.fn(() => ({ limit }));
+    const eqExisting = vi.fn(() => ({ order }));
+    const selectExisting = vi.fn(() => ({ eq: eqExisting }));
+
     const single = vi.fn(async () => ({
       data: {
         id: 'resume-1',
@@ -126,7 +134,10 @@ describe('routes /api/v1/resumes', () => {
     }));
     const select = vi.fn(() => ({ single }));
     const insert = vi.fn(() => ({ select }));
-    const from = vi.fn(() => ({ insert }));
+    const from = vi.fn(() => ({
+      select: selectExisting,
+      insert,
+    }));
 
     vi.mocked(createSupabaseServerClient).mockReturnValue({
       ...authClient,
@@ -160,8 +171,81 @@ describe('routes /api/v1/resumes', () => {
     expect(createSupabaseServerClient).toHaveBeenCalledWith('test-token');
   });
 
+  it('updates the existing resume for authenticated user', async () => {
+    const authClient = createAuthClient();
+
+    const limit = vi.fn(async () => ({
+      data: [{ id: 'resume-1' }],
+      error: null,
+    }));
+    const order = vi.fn(() => ({ limit }));
+    const eqExisting = vi.fn(() => ({ order }));
+    const selectExisting = vi.fn(() => ({ eq: eqExisting }));
+
+    const singleUpdated = vi.fn(async () => ({
+      data: {
+        id: 'resume-1',
+        title: 'Updated Resume',
+        template_id: 'classic',
+        data: { personalInfo: { firstName: 'Ada' } },
+        created_at: '2026-02-20T10:00:00Z',
+        updated_at: '2026-02-21T10:00:00Z',
+      },
+      error: null,
+    }));
+    const selectUpdated = vi.fn(() => ({ single: singleUpdated }));
+    const eqUser = vi.fn(() => ({ select: selectUpdated }));
+    const eqID = vi.fn(() => ({ eq: eqUser }));
+    const update = vi.fn(() => ({ eq: eqID }));
+
+    const from = vi.fn(() => ({
+      select: selectExisting,
+      update,
+    }));
+
+    vi.mocked(createSupabaseServerClient).mockReturnValue({
+      ...authClient,
+      from,
+    } as unknown as ReturnType<typeof createSupabaseServerClient>);
+
+    const response = await POST(
+      new Request('http://localhost:3000/api/v1/resumes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'sb-access-token=test-token',
+        },
+        body: JSON.stringify({
+          title: 'Updated Resume',
+          templateId: 'classic',
+          data: { personalInfo: { firstName: 'Ada' } },
+        }),
+      }),
+    );
+
+    const body = (await response.json()) as {
+      id?: string;
+      title?: string;
+      templateId?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.id).toBe('resume-1');
+    expect(body.title).toBe('Updated Resume');
+    expect(body.templateId).toBe('classic');
+    expect(createSupabaseServerClient).toHaveBeenCalledWith('test-token');
+  });
+
   it('returns 403 when resume insert is blocked by RLS', async () => {
     const authClient = createAuthClient();
+    const limit = vi.fn(async () => ({
+      data: [],
+      error: null,
+    }));
+    const order = vi.fn(() => ({ limit }));
+    const eqExisting = vi.fn(() => ({ order }));
+    const selectExisting = vi.fn(() => ({ eq: eqExisting }));
+
     const single = vi.fn(async () => ({
       data: null,
       error: {
@@ -173,7 +257,10 @@ describe('routes /api/v1/resumes', () => {
     }));
     const select = vi.fn(() => ({ single }));
     const insert = vi.fn(() => ({ select }));
-    const from = vi.fn(() => ({ insert }));
+    const from = vi.fn(() => ({
+      select: selectExisting,
+      insert,
+    }));
 
     vi.mocked(createSupabaseServerClient).mockReturnValue({
       ...authClient,
