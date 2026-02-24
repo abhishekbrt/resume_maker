@@ -30,7 +30,7 @@ Application code should treat `auth.users.id` (UUID) as the canonical user ID.
 | Column        | Type           | Constraints                             | Description                                    |
 | ------------- | -------------- | --------------------------------------- | ---------------------------------------------- |
 | `id`          | `UUID`         | PRIMARY KEY, DEFAULT gen_random_uuid()  | Unique resume identifier                       |
-| `user_id`     | `UUID`         | FK → auth.users(id), NOT NULL           | Owner of the resume                            |
+| `user_id`     | `UUID`         | FK → auth.users(id), NOT NULL, UNIQUE   | Owner of the resume (exactly one resume/user)  |
 | `title`       | `VARCHAR(255)` | NOT NULL, DEFAULT 'Untitled Resume'     | User-given name for this resume                |
 | `template_id` | `VARCHAR(50)`  | FK → templates(id), NOT NULL            | Which template to render with                  |
 | `data`        | `JSONB`        | NOT NULL                                | Full resume content (see schema below)         |
@@ -123,6 +123,7 @@ The `data` column in `resumes` stores structured JSON. Here is the expected shap
 ```sql
 CREATE INDEX idx_resumes_user_id ON resumes(user_id);
 CREATE INDEX idx_resumes_user_updated_at ON resumes(user_id, updated_at DESC);
+ALTER TABLE resumes ADD CONSTRAINT resumes_user_id_key UNIQUE (user_id);
 ```
 
 ---
@@ -131,5 +132,6 @@ CREATE INDEX idx_resumes_user_updated_at ON resumes(user_id, updated_at DESC);
 
 - `auth.users` is the source of truth for identity (Google OAuth via Supabase Auth)
 - `profiles` and `resumes` enforce per-user access with Row Level Security (RLS)
+- `profiles` rows are auto-created from `auth.users` via DB trigger
 - The `data` JSONB column keeps resume content flexible while metadata remains relational
 - Profile photos are stored in object storage; `photo_path` stores the object key/path
