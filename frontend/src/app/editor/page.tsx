@@ -19,7 +19,7 @@ interface EditorWorkspaceProps {
 }
 
 function EditorWorkspace({ userId, userEmail, onLogout }: EditorWorkspaceProps) {
-  useResumeSync(userId);
+  const { flushToCloud } = useResumeSync(userId);
   const { state } = useResume();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -55,6 +55,8 @@ function EditorWorkspace({ userId, userEmail, onLogout }: EditorWorkspaceProps) 
     setIsGenerating(true);
 
     try {
+      await flushToCloud();
+
       const pdfBlob = await generatePDF({
         data: state.data,
         settings: state.settings,

@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { createResume, getResume, listResumes, updateResume, type ResumeRecord } from '@/lib/resume-api';
 import { readPersistedStateForUser, useResume, type ResumeState } from '@/lib/resume-context';
 
-const AUTOSAVE_DELAY_MS = 1500;
 const ACTIVE_RESUME_KEY_PREFIX = 'resume-maker-active-id';
 const DEFAULT_TEMPLATE_ID = 'classic';
 const DEFAULT_TITLE = 'My Resume';
@@ -102,15 +101,26 @@ function isEmptyScaffoldState(state: ResumeState): boolean {
   );
 }
 
-export function useResumeSync(userId: string): void {
+interface UseResumeSyncResult {
+  flushToCloud: () => Promise<void>;
+}
+
+export function useResumeSync(userId: string): UseResumeSyncResult {
   const { state, dispatch } = useResume();
   const stateDataJSON = useMemo(() => JSON.stringify(state.data), [state.data]);
   const initialStateRef = useRef(state);
+  const latestStateRef = useRef(state);
+  const latestStateDataJSONRef = useRef(stateDataJSON);
 
   const initializedRef = useRef(false);
   const activeResumeIdRef = useRef<string | null>(null);
   const lastPersistedDataRef = useRef<string>('');
-  const createInFlightRef = useRef<Promise<void> | null>(null);
+  const persistInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    latestStateRef.current = state;
+    latestStateDataJSONRef.current = stateDataJSON;
+  }, [state, stateDataJSON]);
 
   useEffect(() => {
     let isMounted = true;
@@ -131,7 +141,8 @@ export function useResumeSync(userId: string): void {
         } else {
           logDevInfo('loaded resume data from localStorage');
           activeResumeIdRef.current = activeResumeID;
-          lastPersistedDataRef.current = JSON.stringify(localState.data);
+          // Local state may not yet be synced to cloud; force first manual flush.
+          lastPersistedDataRef.current = '';
           initializedRef.current = true;
           return;
         }
@@ -180,59 +191,58 @@ export function useResumeSync(userId: string): void {
     };
   }, [dispatch, userId]);
 
-  useEffect(() => {
+  const flushToCloud = useCallback(async () => {
     if (!initializedRef.current) {
       return;
     }
 
-    if (stateDataJSON === lastPersistedDataRef.current) {
+    const nextStateJSON = latestStateDataJSONRef.current;
+    if (nextStateJSON === lastPersistedDataRef.current) {
       return;
     }
 
+    if (persistInFlightRef.current) {
+      await persistInFlightRef.current;
+      if (latestStateDataJSONRef.current === lastPersistedDataRef.current) {
+        return;
+      }
+    }
+
     const activeResumeKey = getActiveResumeStorageKey(userId);
+    const dataToPersist = latestStateRef.current.data;
+    const runPersist = async () => {
+      if (!activeResumeIdRef.current) {
+        logDevInfo('creating cloud resume on manual flush');
+        const created = await createResume({
+          title: DEFAULT_TITLE,
+          templateId: DEFAULT_TEMPLATE_ID,
+          data: dataToPersist,
+        });
+        activeResumeIdRef.current = created.id;
+        window.localStorage.setItem(activeResumeKey, created.id);
+        lastPersistedDataRef.current = latestStateDataJSONRef.current;
+        return;
+      }
 
-    const timeoutId = window.setTimeout(() => {
-      const persist = async () => {
-        try {
-          if (!activeResumeIdRef.current) {
-            if (!createInFlightRef.current) {
-              logDevInfo('creating cloud resume for autosave bootstrap');
-              createInFlightRef.current = createResume({
-                title: DEFAULT_TITLE,
-                templateId: DEFAULT_TEMPLATE_ID,
-                data: state.data,
-              })
-                .then((created) => {
-                  logDevInfo('created cloud resume', { resumeId: created.id });
-                  activeResumeIdRef.current = created.id;
-                  window.localStorage.setItem(activeResumeKey, created.id);
-                })
-                .finally(() => {
-                  createInFlightRef.current = null;
-                });
-            }
-
-            await createInFlightRef.current;
-            if (activeResumeIdRef.current) {
-              lastPersistedDataRef.current = stateDataJSON;
-            }
-            return;
-          }
-
-          logDevInfo('autosaving changes to cloud resume', { resumeId: activeResumeIdRef.current });
-          await updateResume(activeResumeIdRef.current, { data: state.data });
-          lastPersistedDataRef.current = stateDataJSON;
-        } catch {
-          // Keep local-first editing even when autosave fails.
-          logDevWarn('autosave failed; keeping local state and retrying on next change');
-        }
-      };
-
-      void persist();
-    }, AUTOSAVE_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
+      logDevInfo('updating cloud resume on manual flush', { resumeId: activeResumeIdRef.current });
+      await updateResume(activeResumeIdRef.current, { data: dataToPersist });
+      lastPersistedDataRef.current = latestStateDataJSONRef.current;
     };
-  }, [state.data, stateDataJSON, userId]);
+
+    persistInFlightRef.current = runPersist().finally(() => {
+      persistInFlightRef.current = null;
+    });
+
+    try {
+      await persistInFlightRef.current;
+    } catch {
+      // Keep local-first editing even when cloud sync fails.
+      logDevWarn('manual flush failed; keeping local state');
+      throw new Error('Failed to save resume to cloud');
+    }
+  }, [userId]);
+
+  return {
+    flushToCloud,
+  };
 }

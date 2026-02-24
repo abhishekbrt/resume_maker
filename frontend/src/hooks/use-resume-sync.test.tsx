@@ -171,8 +171,40 @@ describe('useResumeSync', () => {
     expect(getResume).toHaveBeenCalledWith('resume-2');
   });
 
-  it('debounces autosave updates to an existing cloud resume', async () => {
+  it('does not autosave to cloud while user is typing', async () => {
     vi.useFakeTimers();
+    window.localStorage.setItem('resume-maker-v1:user-1', JSON.stringify(buildState('LocalAda')));
+    window.localStorage.setItem('resume-maker-active-id:user-1', 'resume-1');
+
+    const wrapper = createWrapper('user-1');
+
+    const { result } = renderHook(
+      () => {
+        const sync = useResumeSync('user-1');
+        const resume = useResume();
+        return { sync, resume };
+      },
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.resume.dispatch({
+        type: 'UPDATE_PERSONAL_INFO',
+        field: 'firstName',
+        value: 'UpdatedAda',
+      });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+
+    expect(updateResume).not.toHaveBeenCalled();
+    expect(createResume).not.toHaveBeenCalled();
+  });
+
+  it('flushes to cloud on demand for existing resume', async () => {
     window.localStorage.setItem('resume-maker-v1:user-1', JSON.stringify(buildState('LocalAda')));
     window.localStorage.setItem('resume-maker-active-id:user-1', 'resume-1');
     vi.mocked(updateResume).mockResolvedValue({
@@ -188,36 +220,30 @@ describe('useResumeSync', () => {
 
     const { result } = renderHook(
       () => {
-        useResumeSync('user-1');
-        return useResume();
+        const sync = useResumeSync('user-1');
+        const resume = useResume();
+        return { sync, resume };
       },
       { wrapper },
     );
 
-    expect(result.current.state.data.personalInfo.firstName).toBe('LocalAda');
-
     act(() => {
-      result.current.dispatch({
+      result.current.resume.dispatch({
         type: 'UPDATE_PERSONAL_INFO',
         field: 'firstName',
         value: 'UpdatedAda',
       });
     });
 
-    act(() => {
-      vi.advanceTimersByTime(1400);
-    });
-    expect(updateResume).not.toHaveBeenCalled();
-
     await act(async () => {
-      vi.advanceTimersByTime(100);
-      await Promise.resolve();
+      await result.current.sync.flushToCloud();
     });
+
     expect(updateResume).toHaveBeenCalledOnce();
+    expect(createResume).not.toHaveBeenCalled();
   });
 
-  it('creates a cloud resume on first autosave when no active resume exists', async () => {
-    vi.useFakeTimers();
+  it('flushes to cloud on demand by creating resume when no active id exists', async () => {
     window.localStorage.setItem('resume-maker-v1:user-1', JSON.stringify(buildState('LocalAda')));
     vi.mocked(createResume).mockResolvedValueOnce({
       id: 'resume-new',
@@ -232,16 +258,15 @@ describe('useResumeSync', () => {
 
     const { result } = renderHook(
       () => {
-        useResumeSync('user-1');
-        return useResume();
+        const sync = useResumeSync('user-1');
+        const resume = useResume();
+        return { sync, resume };
       },
       { wrapper },
     );
 
-    expect(result.current.state.data.personalInfo.firstName).toBe('LocalAda');
-
     act(() => {
-      result.current.dispatch({
+      result.current.resume.dispatch({
         type: 'UPDATE_PERSONAL_INFO',
         field: 'firstName',
         value: 'NewAda',
@@ -249,9 +274,9 @@ describe('useResumeSync', () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(1500);
-      await Promise.resolve();
+      await result.current.sync.flushToCloud();
     });
+
     expect(createResume).toHaveBeenCalledOnce();
     expect(window.localStorage.getItem('resume-maker-active-id:user-1')).toBe('resume-new');
   });
